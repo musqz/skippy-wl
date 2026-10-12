@@ -38,6 +38,13 @@ int main(void)
 	CHECK(config_set(&c, "pivot", "yes") < 0);
 	CHECK(config_set(&c, "switch_wait", "0") == 0 && c.switch_wait == 0);
 	CHECK(config_set(&c, "switch_wait", "-1") < 0);
+	CHECK(c.icon == 1 && c.icon_size == 48 && !strcmp(c.icon_theme, "hicolor"));
+	CHECK(config_set(&c, "icon", "false") == 0 && c.icon == 0);
+	CHECK(config_set(&c, "icon", "1") < 0);
+	CHECK(config_set(&c, "icon_size", "64") == 0 && c.icon_size == 64);
+	CHECK(config_set(&c, "icon_size", "8") < 0);
+	CHECK(config_set(&c, "icon_theme", "Papirus-Dark") == 0 && !strcmp(c.icon_theme, "Papirus-Dark"));
+	CHECK(config_set(&c, "icon_theme", "../x") < 0);
 	CHECK(config_action(&c, XKB_KEY_Escape) == ACT_CANCEL);
 	CHECK(config_action(&c, XKB_KEY_KP_Enter) == ACT_SELECT);
 	CHECK(config_action(&c, XKB_KEY_x) == -1);

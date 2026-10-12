@@ -49,6 +49,9 @@ void config_defaults(struct config *c)
 	c->margin = 48;
 	c->spacing = 28;
 	c->label_h = 28;
+	c->icon = 1;
+	c->icon_size = 48;
+	snprintf(c->icon_theme, sizeof(c->icon_theme), "hicolor");
 	c->pivot = 1;
 	c->switch_wait = 100;
 	snprintf(c->font, sizeof(c->font), "Sans 11");
@@ -113,6 +116,23 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 0, 1000, &c->spacing);
 	if (!strcmp(key, "label_height"))
 		return parse_int(value, 8, 200, &c->label_h);
+	if (!strcmp(key, "icon_size"))
+		return parse_int(value, 16, 256, &c->icon_size);
+	if (!strcmp(key, "icon")) {
+		if (!strcmp(value, "true"))
+			c->icon = 1;
+		else if (!strcmp(value, "false"))
+			c->icon = 0;
+		else
+			return -1;
+		return 0;
+	}
+	if (!strcmp(key, "icon_theme")) {
+		if (!*value || strlen(value) >= sizeof(c->icon_theme) || strchr(value, '/'))
+			return -1;
+		snprintf(c->icon_theme, sizeof(c->icon_theme), "%s", value);
+		return 0;
+	}
 	if (!strcmp(key, "switch_wait"))
 		return parse_int(value, 0, 5000, &c->switch_wait);
 	if (!strcmp(key, "pivot")) {

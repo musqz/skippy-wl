@@ -20,6 +20,8 @@ struct config {
 	int margin, spacing, label_h;
 	enum label_mode label;
 	enum monitor_mode monitors;
+	int icon, icon_size; /* app icon on each tile */
+	char icon_theme[64];
 	int pivot; /* release of the modifiers held at open picks the selection */
 	int switch_wait; /* ms before a --next/--prev overlay is drawn; 0 = at once */
 	char font[96];

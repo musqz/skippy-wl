@@ -172,6 +172,20 @@ Milliseconds to wait before drawing the overlay in switch mode (needs
 .BR pivot ).
 0 draws at once. Default 100.
 .TP
+.B icon
+.B true
+draws the application icon in the corner of each tile, and large in the middle of tiles without a thumbnail. Default
+.IR true .
+.TP
+.B icon_size
+Size in pixels, 16 to 256, of the corner icon. Default 48. Tiles smaller than three times this have no corner icon. Tiles without a thumbnail show a larger icon sized to the tile.
+.TP
+.B icon_theme
+Icon theme name. Its parents and
+.B hicolor
+are searched too. Default
+.IR hicolor .
+.TP
 .B font
 Pango font description for titles. Default
 .IR "Sans 11" .

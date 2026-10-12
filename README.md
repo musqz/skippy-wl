@@ -6,7 +6,7 @@ Expose tool like skippy-xd but for wayland
 ## Requirements
 - labwc 0.20 or newer (wlroots 0.20). Other compositors are untested.
 - Protocols: ext-foreign-toplevel-list, ext-image-capture-source, ext-image-copy-capture, wlr-foreign-toplevel-management, wlr-layer-shell.
-- Build: meson, ninja, wayland, cairo, pango, libxkbcommon.
+- Build: meson, ninja, wayland, cairo, pango, librsvg, libxkbcommon.
 
 ## Install
 Run `./install.sh`. It installs to `~/.local`; set `PREFIX=/usr SUDO=sudo` for a system install.
@@ -55,7 +55,7 @@ Copy the template and edit it:
 
 To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc`.
 
-Settings: `margin`, `spacing`, `label_height`, `label` (`title`, `app_id`, `both`), `monitors` (`each`, `pointer`), `pivot`, `switch_wait`, `font`, `background`, `highlight`, `border`, `theme_file`, `bind.*`. Changes apply the next time the overlay opens.
+Settings: `margin`, `spacing`, `label_height`, `label` (`title`, `app_id`, `both`), `monitors` (`each`, `pointer`), `pivot`, `switch_wait`, `icon`, `icon_size`, `icon_theme`, `font`, `background`, `highlight`, `border`, `theme_file`, `bind.*`. Changes apply the next time the overlay opens.
 
 ## Development
     meson setup build && ninja -C build && meson test -C build

@@ -10,6 +10,7 @@ wl_client = dependency('wayland-client')
 cairo = dependency('cairo')
 xkbcommon = dependency('xkbcommon')
 pangocairo = dependency('pangocairo')
+librsvg = dependency('librsvg-2.0', version: '>=2.52')
 scanner = find_program('wayland-scanner')
 
 proto_xml = [
@@ -44,8 +45,8 @@ protocols_dep = declare_dependency(
 
 executable('skippy-wl',
   'src/main.c', 'src/capture.c', 'src/toplevels.c', 'src/globals.c', 'src/wlutil.c',
-  'src/layout.c', 'src/input.c', 'src/overlay.c', 'src/config.c', 'src/ipc.c', 'src/daemon.c', 'src/filter.c',
-  dependencies: [protocols_dep, cairo, xkbcommon, pangocairo],
+  'src/layout.c', 'src/input.c', 'src/overlay.c', 'src/config.c', 'src/ipc.c', 'src/daemon.c', 'src/filter.c', 'src/icons.c',
+  dependencies: [protocols_dep, cairo, xkbcommon, pangocairo, librsvg],
   install: true)
 
 install_man('man/skippy-wl.1')
@@ -66,3 +67,8 @@ test('config', test_config)
 test_filter = executable('test_filter', 'tests/test_filter.c', 'src/filter.c',
   include_directories: include_directories('src'))
 test('filter', test_filter)
+
+test_icons = executable('test_icons', 'tests/test_icons.c', 'src/icons.c',
+  include_directories: include_directories('src'),
+  dependencies: [cairo, librsvg])
+test('icons', test_icons)
