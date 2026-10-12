@@ -14,6 +14,14 @@ skippy-wl \- window overview for labwc
 .IR LIST ]
 .RB [ \-\-next | \-\-prev ]
 .br
+.B skippy-wl \-\-switch
+.RB [ \-\-app\-id
+.IR LIST ]
+.RB [ \-\-title
+.IR LIST ]
+.RB [ \-\-status
+.IR LIST ]
+.br
 .B skippy-wl \-\-quit
 .br
 .B skippy-wl \-\-version
@@ -43,6 +51,11 @@ Open the overlay, or close it if it is open.
 .TP
 .B \-\-show
 Open the overlay. Does nothing if it is open.
+.TP
+.B \-\-switch
+Focus the previous window at once and draw nothing. This is the second window in the usage order, or the first if no window has focus. Takes the filters below, so
+.I \-\-switch \-\-app\-id kitty
+flips between the last two kitty windows. Needs the daemon, which keeps the usage order.
 .TP
 .B \-\-quit
 Stop the daemon.

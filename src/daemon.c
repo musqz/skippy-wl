@@ -10,7 +10,7 @@
 #include "wlutil.h"
 
 static int listen_fd;
-static int want_show, want_quit;
+static int want_show, want_quit, want_switch;
 static struct filter pending; /* filter of the next overlay */
 static int pending_dir;
 
@@ -66,6 +66,11 @@ static void on_command(void)
 			pending_dir = dir;
 			want_show = 1;
 		}
+	} else if (!strcmp(verb, "switch")) {
+		if (!overlay_active()) {
+			pending = f;
+			want_switch = 1;
+		}
 	} else if (!strcmp(verb, "quit")) {
 		want_quit = 1;
 		overlay_cancel();
@@ -79,7 +84,7 @@ static void on_command(void)
 static int idle_done(void *arg)
 {
 	(void)arg;
-	return want_show || want_quit;
+	return want_show || want_quit || want_switch;
 }
 
 static void on_signal(int sig)
@@ -127,6 +132,12 @@ int daemon_run(struct globals *g)
 		}
 		if (want_quit)
 			break;
+		if (want_switch) {
+			want_switch = 0;
+			if (overlay_switch(g, &pending) < 0 && !display_interrupted())
+				fprintf(stderr, "skippy-wl: switch failed\n");
+			continue;
+		}
 		want_show = 0;
 		if (overlay_run(g, &pending, pending_dir) < 0 && !display_interrupted())
 			fprintf(stderr, "skippy-wl: overlay failed\n");

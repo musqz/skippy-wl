@@ -107,10 +107,11 @@ static int usage(const char *argv0)
 	fprintf(stderr, "skippy-wl %s\nusage: %s --daemon\n"
 		"       %s --toggle | --show [--app-id LIST] [--title LIST] [--status LIST]\n"
 		"                          [--next | --prev]\n"
+		"       %s --switch [--app-id LIST] [--title LIST] [--status LIST]\n"
 		"       %s --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
 		"       %s --capture-all <dir>\n"
-		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0);
+		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
 	return 1;
 }
 
@@ -165,7 +166,8 @@ int main(int argc, char **argv)
 	}
 	if (argc == 2 && !strcmp(argv[1], "--daemon")) {
 		mode = MODE_DAEMON;
-	} else if (argc >= 2 && (!strcmp(argv[1], "--show") || !strcmp(argv[1], "--toggle"))) {
+	} else if (argc >= 2 && (!strcmp(argv[1], "--show") || !strcmp(argv[1], "--toggle") ||
+			!strcmp(argv[1], "--switch"))) {
 		char cmd[IPC_CMD_LEN];
 		size_t len = (size_t)snprintf(cmd, sizeof(cmd), "%s", argv[1] + 2);
 
@@ -173,6 +175,8 @@ int main(int argc, char **argv)
 			const char *key, *val;
 			int n;
 
+			if (!strcmp(argv[1], "--switch") && (!strcmp(argv[i], "--next") || !strcmp(argv[i], "--prev")))
+				return usage(argv[0]);
 			if (!strcmp(argv[i], "--next") || !strcmp(argv[i], "--prev")) {
 				dir = argv[i][2] == 'n' ? 1 : -1;
 				n = snprintf(cmd + len, sizeof(cmd) - len, "\tdir=%s", argv[i] + 2);
@@ -213,6 +217,10 @@ int main(int argc, char **argv)
 
 		if (sent != -1)
 			return sent == 0 ? 0 : 1;
+		if (!strcmp(argv[1], "--switch")) {
+			fprintf(stderr, "skippy-wl: --switch needs the daemon (start one with --daemon)\n");
+			return 1;
+		}
 		/* no daemon: show once in this process */
 		if (!strcmp(argv[1], "--toggle"))
 			fprintf(stderr, "skippy-wl: no daemon running, showing once (start one with --daemon)\n");
