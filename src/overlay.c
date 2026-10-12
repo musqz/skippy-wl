@@ -2,6 +2,7 @@
 #include <cairo.h>
 #include <linux/input-event-codes.h>
 #include <pango/pangocairo.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -23,7 +24,8 @@
 #define PLACEHOLDER_H 400
 
 struct tile {
-	char *identifier, *app_id, *title;
+	struct toplevel *t; /* valid until its closed event removes this tile */
+	char *app_id, *title;
 	struct capture *cap;
 	cairo_surface_t *full; /* wraps cap->data, NULL when the capture failed */
 	struct size size;
@@ -45,6 +47,10 @@ struct surf {
 	struct buffer buf[2];
 	struct wl_callback *frame_cb;
 	int dirty;
+	struct wl_output *output;
+	/* tiles shown on this output (indexes into st.tiles); rects/scaled are indexed by position in vis */
+	int *vis;
+	int nvis;
 	struct rect *rects;
 	cairo_surface_t **scaled;
 	int cols;
@@ -58,10 +64,13 @@ static struct {
 	int sel;
 	struct surf *ptr_surf;
 	int quit;
-	char *selected;
+	struct toplevel *pick; /* window to activate after teardown */
 } st;
 
 static void draw(struct surf *s);
+static void relayout(struct surf *s);
+static void tile_free(struct tile *tl);
+static void layout_free(struct surf *s);
 
 static char *dup_or_empty(const char *s)
 {
@@ -107,11 +116,11 @@ static int tiles_init(struct globals *g)
 	for (t = toplevels_first(); t; t = t->next, i++) {
 		struct tile *tl = &st.tiles[i];
 
-		tl->identifier = dup_or_empty(t->identifier);
+		tl->t = t;
 		tl->app_id = dup_or_empty(t->app_id);
 		tl->title = dup_or_empty(t->title);
 		tl->cap = capture_start(t->ext);
-		if (!tl->identifier || !tl->app_id || !tl->title || !tl->cap)
+		if (!tl->app_id || !tl->title || !tl->cap)
 			return -1;
 	}
 	/* a window that never answers just gets a placeholder tile */
@@ -128,62 +137,114 @@ static int tiles_init(struct globals *g)
 
 static void tiles_finish(void)
 {
-	for (int i = 0; i < st.n; i++) {
-		struct tile *tl = &st.tiles[i];
-
-		if (tl->full)
-			cairo_surface_destroy(tl->full);
-		if (tl->cap)
-			capture_destroy(tl->cap);
-		free(tl->identifier);
-		free(tl->app_id);
-		free(tl->title);
-	}
+	for (int i = 0; i < st.n; i++)
+		tile_free(&st.tiles[i]);
 	free(st.tiles);
 	st.tiles = NULL;
 	st.n = 0;
 }
 
+static void tile_free(struct tile *tl)
+{
+	if (tl->full)
+		cairo_surface_destroy(tl->full);
+	if (tl->cap)
+		capture_destroy(tl->cap);
+	free(tl->app_id);
+	free(tl->title);
+}
+
+/* a window closed while the overlay is up: drop its tile and re-flow */
+static void on_toplevel_closed(struct toplevel *t)
+{
+	struct surf *s;
+	int i;
+
+	if (st.pick == t)
+		st.pick = NULL;
+	for (i = 0; i < st.n && st.tiles[i].t != t; i++)
+		;
+	if (i == st.n)
+		return;
+	tile_free(&st.tiles[i]);
+	memmove(&st.tiles[i], &st.tiles[i + 1], (size_t)(st.n - i - 1) * sizeof(*st.tiles));
+	st.n--;
+	if (!st.n) {
+		for (s = st.surfs; s; s = s->next)
+			layout_free(s);
+		st.quit = 1;
+		return;
+	}
+	if (st.sel > i)
+		st.sel--;
+	else if (st.sel >= st.n)
+		st.sel = st.n - 1;
+	for (s = st.surfs; s; s = s->next)
+		if (s->w)
+			relayout(s);
+	redraw_all();
+}
+
 /* ---- per-output layout ---- */
+
+static void layout_free(struct surf *s)
+{
+	for (int p = 0; p < s->nvis && s->scaled; p++)
+		if (s->scaled[p])
+			cairo_surface_destroy(s->scaled[p]);
+	free(s->scaled);
+	free(s->rects);
+	free(s->vis);
+	s->scaled = NULL;
+	s->rects = NULL;
+	s->vis = NULL;
+	s->nvis = 0;
+	s->cols = 0;
+}
 
 static void relayout(struct surf *s)
 {
-	struct size *src = calloc((size_t)st.n, sizeof(*src));
+	struct size *src;
 
-	for (int i = 0; i < st.n; i++) {
-		if (s->scaled && s->scaled[i])
-			cairo_surface_destroy(s->scaled[i]);
-	}
-	free(s->scaled);
-	free(s->rects);
-	s->scaled = calloc((size_t)st.n, sizeof(*s->scaled));
-	s->rects = calloc((size_t)st.n, sizeof(*s->rects));
-	if (!src || !s->scaled || !s->rects) {
-		free(src);
-		free(s->scaled);
-		free(s->rects);
-		s->scaled = NULL;
-		s->rects = NULL;
+	layout_free(s);
+	if (!st.n)
+		return;
+	s->vis = calloc((size_t)st.n, sizeof(*s->vis));
+	if (!s->vis)
+		return;
+	for (int i = 0; i < st.n; i++)
+		if (toplevel_on_output(st.tiles[i].t, s->output))
+			s->vis[s->nvis++] = i;
+	if (!s->nvis) {
+		layout_free(s);
 		return;
 	}
-	for (int i = 0; i < st.n; i++)
-		src[i] = st.tiles[i].size;
-	s->cols = layout_grid(src, st.n, (struct size){ s->w - 2 * MARGIN, s->h - 2 * MARGIN },
+	src = calloc((size_t)s->nvis, sizeof(*src));
+	s->scaled = calloc((size_t)s->nvis, sizeof(*s->scaled));
+	s->rects = calloc((size_t)s->nvis, sizeof(*s->rects));
+	if (!src || !s->scaled || !s->rects) {
+		free(src);
+		layout_free(s);
+		return;
+	}
+	for (int p = 0; p < s->nvis; p++)
+		src[p] = st.tiles[s->vis[p]].size;
+	s->cols = layout_grid(src, s->nvis, (struct size){ s->w - 2 * MARGIN, s->h - 2 * MARGIN },
 		SPACING, LABEL_H, s->rects);
 	free(src);
 
-	for (int i = 0; i < st.n; i++) {
-		struct rect *r = &s->rects[i];
-		struct tile *tl = &st.tiles[i];
+	for (int p = 0; p < s->nvis; p++) {
+		struct rect *r = &s->rects[p];
+		struct tile *tl = &st.tiles[s->vis[p]];
+		cairo_t *cr;
 
 		r->x += MARGIN;
 		r->y += MARGIN;
 		if (!tl->full)
 			continue;
 		/* scale once to tile size; drawing then only blits */
-		s->scaled[i] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, r->w, r->h);
-		cairo_t *cr = cairo_create(s->scaled[i]);
-
+		s->scaled[p] = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, r->w, r->h);
+		cr = cairo_create(s->scaled[p]);
 		cairo_scale(cr, (double)r->w / tl->size.w, (double)r->h / tl->size.h);
 		cairo_set_source_surface(cr, tl->full, 0, 0);
 		cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_GOOD);
@@ -192,18 +253,19 @@ static void relayout(struct surf *s)
 	}
 }
 
+/* tile index under the point, or -1 */
 static int hit_test(struct surf *s, double x, double y)
 {
 	int pad = SPACING / 2;
 
 	if (!s->rects)
 		return -1;
-	for (int i = 0; i < st.n; i++) {
-		struct rect *r = &s->rects[i];
+	for (int p = 0; p < s->nvis; p++) {
+		struct rect *r = &s->rects[p];
 
 		if (x >= r->x - pad && x < r->x + r->w + pad &&
 				y >= r->y - pad && y < r->y + r->h + LABEL_H + pad)
-			return i;
+			return s->vis[p];
 	}
 	return -1;
 }
@@ -239,13 +301,14 @@ static void render(struct surf *s, cairo_t *cr)
 	cairo_paint(cr);
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 
-	for (int i = 0; i < st.n && s->rects && s->scaled; i++) {
-		struct rect *r = &s->rects[i];
+	for (int p = 0; p < s->nvis && s->rects && s->scaled; p++) {
+		int i = s->vis[p];
+		struct rect *r = &s->rects[p];
 		struct tile *tl = &st.tiles[i];
 		int selected = i == st.sel;
 
-		if (s->scaled[i]) {
-			cairo_set_source_surface(cr, s->scaled[i], r->x, r->y);
+		if (s->scaled[p]) {
+			cairo_set_source_surface(cr, s->scaled[p], r->x, r->y);
 			cairo_paint(cr);
 		} else {
 			cairo_set_source_rgba(cr, 0.16, 0.16, 0.18, 1);
@@ -388,6 +451,7 @@ static void surf_create(struct output *o)
 
 	if (!s)
 		return;
+	s->output = o->wl;
 	s->surface = wl_compositor_create_surface(st.g->compositor);
 	s->layer = zwlr_layer_shell_v1_get_layer_surface(st.g->layer_shell, s->surface, o->wl,
 		ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY, "skippy-wl");
@@ -408,11 +472,7 @@ static void surf_destroy(struct surf *s)
 {
 	if (s->frame_cb)
 		wl_callback_destroy(s->frame_cb);
-	for (int i = 0; i < st.n && s->scaled; i++)
-		if (s->scaled[i])
-			cairo_surface_destroy(s->scaled[i]);
-	free(s->scaled);
-	free(s->rects);
+	layout_free(s);
 	buf_free(&s->buf[0]);
 	buf_free(&s->buf[1]);
 	zwlr_layer_surface_v1_destroy(s->layer);
@@ -422,25 +482,42 @@ static void surf_destroy(struct surf *s)
 
 /* ---- input ---- */
 
-/* columns of the output the user is working on: the pointer's, else the first laid out */
-static int active_cols(void)
+/* the output the user is working on: the pointer's, else the first with windows */
+static struct surf *active_surf(void)
 {
 	struct surf *s;
 
-	if (st.ptr_surf && st.ptr_surf->cols)
-		return st.ptr_surf->cols;
+	if (st.ptr_surf && st.ptr_surf->nvis)
+		return st.ptr_surf;
 	for (s = st.surfs; s; s = s->next)
-		if (s->cols)
-			return s->cols;
-	return 1;
+		if (s->nvis)
+			return s;
+	return NULL;
+}
+
+static int pos_of(const struct surf *s, int tile)
+{
+	for (int p = 0; p < s->nvis; p++)
+		if (s->vis[p] == tile)
+			return p;
+	return -1;
 }
 
 static void choose(int i)
 {
 	if (st.quit || i < 0 || i >= st.n)
 		return;
-	st.selected = strdup(st.tiles[i].identifier);
+	st.pick = st.tiles[i].t;
 	st.quit = 1;
+}
+
+static void close_tile(int i)
+{
+	if (st.quit || i < 0 || i >= st.n)
+		return;
+	/* the tile goes away when the window's closed event arrives */
+	if (toplevel_close(st.tiles[i].t) < 0)
+		fprintf(stderr, "skippy-wl: cannot close this window (no wlr handle paired)\n");
 }
 
 static void set_sel(int to)
@@ -451,25 +528,61 @@ static void set_sel(int to)
 	}
 }
 
-static void move_horiz(int to)
+/* move to position pos on the active output; no-op when out of range */
+static void select_pos(struct surf *s, int pos)
 {
-	if (st.n && to >= 0 && to < st.n)
-		set_sel(to);
+	if (pos >= 0 && pos < s->nvis)
+		set_sel(s->vis[pos]);
+}
+
+static void move_horiz(int delta)
+{
+	struct surf *s = active_surf();
+	int pos;
+
+	if (!s)
+		return;
+	pos = pos_of(s, st.sel);
+	select_pos(s, pos < 0 ? 0 : pos + delta);
 }
 
 /* a vertical step into a shorter last row lands on its last tile */
 static void move_vert(int dir)
 {
-	int cols = active_cols(), to = st.sel + dir * cols;
+	struct surf *s = active_surf();
+	int cols, pos, to;
 
-	if (to >= st.n && st.sel / cols < (st.n - 1) / cols)
-		to = st.n - 1;
-	if (st.n && to >= 0 && to < st.n)
-		set_sel(to);
+	if (!s)
+		return;
+	pos = pos_of(s, st.sel);
+	if (pos < 0) {
+		select_pos(s, 0);
+		return;
+	}
+	cols = s->cols ? s->cols : 1;
+	to = pos + dir * cols;
+	if (to >= s->nvis && pos / cols < (s->nvis - 1) / cols)
+		to = s->nvis - 1;
+	select_pos(s, to);
+}
+
+static void cycle(int dir)
+{
+	struct surf *s = active_surf();
+	int pos;
+
+	if (!s)
+		return;
+	pos = pos_of(s, st.sel);
+	select_pos(s, pos < 0 ? 0 : (pos + dir + s->nvis) % s->nvis);
 }
 
 void overlay_key(uint32_t sym)
 {
+	struct surf *s;
+
+	if (st.quit)
+		return;
 	switch (sym) {
 	case XKB_KEY_Escape:
 		st.quit = 1;
@@ -478,11 +591,14 @@ void overlay_key(uint32_t sym)
 	case XKB_KEY_KP_Enter:
 		choose(st.sel);
 		break;
+	case XKB_KEY_Delete:
+		close_tile(st.sel);
+		break;
 	case XKB_KEY_Left:
-		move_horiz(st.sel - 1);
+		move_horiz(-1);
 		break;
 	case XKB_KEY_Right:
-		move_horiz(st.sel + 1);
+		move_horiz(1);
 		break;
 	case XKB_KEY_Up:
 		move_vert(-1);
@@ -491,16 +607,18 @@ void overlay_key(uint32_t sym)
 		move_vert(1);
 		break;
 	case XKB_KEY_Home:
-		move_horiz(0);
+		if ((s = active_surf()))
+			select_pos(s, 0);
 		break;
 	case XKB_KEY_End:
-		move_horiz(st.n - 1);
+		if ((s = active_surf()))
+			select_pos(s, s->nvis - 1);
 		break;
 	case XKB_KEY_Tab:
-		set_sel(st.sel + 1 < st.n ? st.sel + 1 : 0);
+		cycle(1);
 		break;
 	case XKB_KEY_ISO_Left_Tab:
-		set_sel(st.sel > 0 ? st.sel - 1 : st.n - 1);
+		cycle(-1);
 		break;
 	}
 }
@@ -511,6 +629,8 @@ void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
 {
 	int hit;
 
+	if (st.quit)
+		return;
 	if (surface) {
 		struct surf *s;
 
@@ -537,13 +657,17 @@ void overlay_pointer_button(uint32_t button)
 {
 	int hit;
 
-	if (!st.ptr_surf || button != BTN_LEFT)
+	if (st.quit || !st.ptr_surf)
 		return;
 	hit = hit_test(st.ptr_surf, ptr_x, ptr_y);
-	if (hit >= 0)
-		choose(hit);
-	else
-		st.quit = 1;
+	if (button == BTN_LEFT) {
+		if (hit >= 0)
+			choose(hit);
+		else
+			st.quit = 1;
+	} else if (button == BTN_MIDDLE) {
+		close_tile(hit);
+	}
 }
 
 /* ---- run ---- */
@@ -554,14 +678,14 @@ static int quit_requested(void *arg)
 	return st.quit;
 }
 
-int overlay_run(struct globals *g, char **selected)
+int overlay_run(struct globals *g)
 {
 	struct output *o;
-	int rc = 0;
+	int rc = 0, input_up = 0;
 
 	memset(&st, 0, sizeof(st));
 	st.g = g;
-	*selected = NULL;
+	toplevels_set_closed_cb(on_toplevel_closed);
 	if (tiles_init(g) < 0) {
 		rc = -1;
 		goto out;
@@ -570,11 +694,11 @@ int overlay_run(struct globals *g, char **selected)
 		goto out;
 	st.sel = 0;
 	input_init(g);
+	input_up = 1;
 	for (o = g->outputs; o; o = o->next)
 		surf_create(o);
 	if (display_wait(g->display, quit_requested, NULL, -1) < 0)
 		rc = -1;
-	input_finish();
 out:
 	while (st.surfs) {
 		struct surf *s = st.surfs;
@@ -582,8 +706,18 @@ out:
 		st.surfs = s->next;
 		surf_destroy(s);
 	}
+	st.ptr_surf = NULL;
+	if (st.pick) {
+		/* focus the pick only after the overlay is gone, or the compositor hands focus back */
+		wl_display_roundtrip(g->display);
+		if (toplevel_activate(st.pick, input_seat()) < 0)
+			fprintf(stderr, "skippy-wl: cannot activate this window (no wlr handle paired)\n");
+		wl_display_roundtrip(g->display);
+	}
+	if (input_up)
+		input_finish();
+	toplevels_set_closed_cb(NULL);
 	tiles_finish();
 	wl_display_roundtrip(g->display);
-	*selected = st.selected;
 	return rc;
 }

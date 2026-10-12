@@ -152,6 +152,11 @@ void input_init(struct globals *g)
 	wl_display_roundtrip(g->display);
 }
 
+struct wl_seat *input_seat(void)
+{
+	return seat;
+}
+
 void input_finish(void)
 {
 	if (pointer)

@@ -5,15 +5,32 @@
 #include <wayland-client.h>
 
 #include "ext-foreign-toplevel-list-v1-client-protocol.h"
+#include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 
+struct wtop;
+
+/* One window: the ext handle (thumbnails) paired with its wlr handle (actions). */
 struct toplevel {
 	struct toplevel *next;
 	struct ext_foreign_toplevel_handle_v1 *ext;
 	char *identifier, *title, *app_id;
+	struct wtop *w; /* NULL until paired, or when pairing failed */
+	int ext_done, no_pair;
 };
 
-void toplevels_init(struct ext_foreign_toplevel_list_v1 *list);
+/* mgr may be NULL: windows then stay unpaired and cannot be acted on */
+void toplevels_init(struct ext_foreign_toplevel_list_v1 *list,
+	struct zwlr_foreign_toplevel_manager_v1 *mgr);
 struct toplevel *toplevels_first(void);
 struct toplevel *toplevels_find(const char *identifier);
+
+/* called just before a toplevel is freed */
+void toplevels_set_closed_cb(void (*cb)(struct toplevel *));
+
+/* 0 on success, -1 when the window has no trusted wlr pair. Activate also unminimizes and switches workspace on labwc. */
+int toplevel_activate(struct toplevel *t, struct wl_seat *seat);
+int toplevel_close(struct toplevel *t);
+/* 1 if the window is on the output, or if its outputs are unknown */
+int toplevel_on_output(const struct toplevel *t, const struct wl_output *out);
 
 #endif
