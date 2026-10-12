@@ -44,3 +44,6 @@ protocols_dep = declare_dependency(
 executable('skippy-wl', 'src/main.c',
   dependencies: [protocols_dep, cairo, xkbcommon],
   install: false)
+
+executable('skippy-wl-probe', 'src/probe.c',
+  dependencies: [protocols_dep])
