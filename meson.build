@@ -46,7 +46,10 @@ executable('skippy-wl',
   'src/main.c', 'src/capture.c', 'src/toplevels.c', 'src/globals.c', 'src/wlutil.c',
   'src/layout.c', 'src/input.c', 'src/overlay.c', 'src/config.c', 'src/ipc.c', 'src/daemon.c',
   dependencies: [protocols_dep, cairo, xkbcommon, pangocairo],
-  install: false)
+  install: true)
+
+install_man('man/skippy-wl.1')
+install_data('configs/skippy-wl.conf', install_dir: get_option('datadir') / 'skippy-wl')
 
 executable('skippy-wl-probe', 'src/probe.c',
   dependencies: [protocols_dep])
