@@ -138,7 +138,9 @@ per line, grouped under
 .I [section]
 headers. A line that starts with
 .B #
-is a comment. A key outside a section is an error. The settings below are named
+is a comment, and so is the rest of a line after a
+.B #
+that follows whitespace. Lines may be up to 255 characters. A key outside a section is an error. The settings below are named
 .IR section.key . The file is read each time the overlay opens. Invalid lines are reported on stderr and skipped.
 .TP
 .B layout.margin

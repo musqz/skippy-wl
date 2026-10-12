@@ -231,6 +231,40 @@ static char *trim(char *s)
 	return s;
 }
 
+/* #RRGGBB or #RRGGBBAA followed by the end or whitespace */
+static int color_at(const char *p)
+{
+	size_t n = 1;
+
+	while (isxdigit((unsigned char)p[n]))
+		n++;
+	return (n == 7 || n == 9) && (!p[n] || isspace((unsigned char)p[n]));
+}
+
+/*
+ * Cuts a # that follows whitespace and everything after it. The first thing after
+ * the "=" stays when it is a color: "background = #112233 # note".
+ */
+static void strip_comment(char *s)
+{
+	char *eq = NULL;
+
+	for (char *p = s; *p; p++) {
+		const char *q;
+
+		if (*p == '=' && !eq)
+			eq = p;
+		if (*p != '#' || p == s || !isspace((unsigned char)p[-1]))
+			continue;
+		for (q = eq ? eq + 1 : p; q < p && isspace((unsigned char)*q); q++)
+			;
+		if (eq && q == p && color_at(p))
+			continue;
+		*p = 0;
+		return;
+	}
+}
+
 /* "window.active.border.color: #rrggbb" lines of a labwc theme */
 static void load_theme(struct config *c)
 {
@@ -272,7 +306,7 @@ static void load_theme(struct config *c)
 void config_load(struct config *c)
 {
 	const char *xdg = getenv("XDG_CONFIG_HOME"), *home = getenv("HOME");
-	char path[PATH_MAX], line[256], section[32] = "", key[96];
+	char path[PATH_MAX], line[258], section[32] = "", key[96];
 	FILE *f;
 	int n = 0, skip = 0;
 
@@ -287,7 +321,7 @@ void config_load(struct config *c)
 	if (!f)
 		return;
 	while (fgets(line, sizeof(line), f)) {
-		int too_long = !strchr(line, '\n') && !feof(f);
+		int too_long = !strchr(line, '\n') && !feof(f), cut = too_long;
 		char *s = trim(line), *eq;
 
 		n++;
@@ -297,6 +331,18 @@ void config_load(struct config *c)
 			too_long = ch != '\n' && ch != EOF;
 		}
 		if (!*s || *s == '#')
+			continue;
+		if (cut) {
+			fprintf(stderr, "skippy-wl: %s:%d: line too long\n", path, n);
+			if (*s == '[') {
+				section[0] = 0;
+				skip = 1;
+			}
+			continue;
+		}
+		strip_comment(s);
+		s = trim(s);
+		if (!*s)
 			continue;
 		if (*s == '[') {
 			char *end = strchr(s, ']');
