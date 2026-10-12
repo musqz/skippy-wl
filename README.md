@@ -20,6 +20,13 @@ Start the daemon, then toggle the overlay:
 
 Other commands: `--show`, `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
 
+Filter the windows with `--app-id`, `--title` and `--status` (`minimized`, `maximized`, `fullscreen`, `activated`). Lists are comma separated globs; a leading `!` excludes, `\,` is a literal comma:
+
+    skippy-wl --toggle --app-id kitty,foot
+    skippy-wl --toggle --title '*vim*'
+    skippy-wl --toggle --app-id '!firefox' --status '!minimized'
+ `man skippy-wl` lists the overlay keys.
+
 ## labwc
 Add to `~/.config/labwc/autostart`:
 

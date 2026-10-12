@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "filter.h"
 #include "toplevels.h"
 
 #define MAX_OUTS 8
@@ -18,6 +19,7 @@ struct wtop {
 	char *app_id;
 	struct wl_output *outs[MAX_OUTS];
 	int n_outs, done, checked, bad;
+	unsigned status; /* STATUS_* bits from the wlr state event */
 	struct toplevel *t;
 };
 
@@ -194,7 +196,27 @@ static void w_output_leave(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, s
 
 static void w_state(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, struct wl_array *a)
 {
-	(void)d; (void)h; (void)a;
+	struct wtop *w = d;
+	uint32_t *s;
+
+	(void)h;
+	w->status = 0;
+	wl_array_for_each(s, a) {
+		switch (*s) {
+		case ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MAXIMIZED:
+			w->status |= STATUS_MAXIMIZED;
+			break;
+		case ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_MINIMIZED:
+			w->status |= STATUS_MINIMIZED;
+			break;
+		case ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED:
+			w->status |= STATUS_ACTIVATED;
+			break;
+		case ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_FULLSCREEN:
+			w->status |= STATUS_FULLSCREEN;
+			break;
+		}
+	}
 }
 
 static void w_done(void *d, struct zwlr_foreign_toplevel_handle_v1 *h)
@@ -317,4 +339,9 @@ void toplevels_output_removed(const struct wl_output *out)
 		for (int i = 0; i < w->n_outs; i++)
 			if (w->outs[i] == out)
 				w->outs[i] = w->outs[--w->n_outs];
+}
+
+unsigned toplevel_status(const struct toplevel *t)
+{
+	return t->w && !pairing_broken ? t->w->status : STATUS_UNKNOWN;
 }

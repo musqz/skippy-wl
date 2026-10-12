@@ -4,29 +4,60 @@
 #include <string.h>
 
 #include "daemon.h"
+#include "filter.h"
 #include "ipc.h"
 #include "overlay.h"
 #include "wlutil.h"
 
 static int listen_fd;
 static int want_show, want_quit;
+static struct filter pending; /* filter of the next overlay */
+
+/* "verb\tkey=value\t...": fills f, returns the verb; NULL if a filter is invalid */
+static char *split_command(char *cmd, struct filter *f)
+{
+	char *save, *tok, *verb = strtok_r(cmd, "\t", &save);
+
+	memset(f, 0, sizeof(*f));
+	while (verb && (tok = strtok_r(NULL, "\t", &save))) {
+		char *eq = strchr(tok, '=');
+
+		if (!eq)
+			return NULL;
+		*eq = 0;
+		if (filter_set(f, tok, eq + 1) < 0)
+			return NULL;
+	}
+	return verb ? verb : "";
+}
 
 static void on_command(void)
 {
-	char cmd[64];
+	char cmd[IPC_CMD_LEN];
+	struct filter f;
+	char *verb;
 	int client = ipc_accept(listen_fd, cmd, sizeof(cmd));
 
 	if (client < 0)
 		return;
-	if (!strcmp(cmd, "toggle")) {
-		if (overlay_active())
+	verb = split_command(cmd, &f);
+	if (!verb) {
+		ipc_reply(client, "invalid filter\n");
+		return;
+	}
+	if (!strcmp(verb, "toggle")) {
+		if (overlay_active()) {
 			overlay_cancel();
-		else
+		} else {
+			pending = f;
 			want_show = 1;
-	} else if (!strcmp(cmd, "show")) {
-		if (!overlay_active())
+		}
+	} else if (!strcmp(verb, "show")) {
+		if (!overlay_active()) {
+			pending = f;
 			want_show = 1;
-	} else if (!strcmp(cmd, "quit")) {
+		}
+	} else if (!strcmp(verb, "quit")) {
 		want_quit = 1;
 		overlay_cancel();
 	} else {
@@ -88,7 +119,7 @@ int daemon_run(struct globals *g)
 		if (want_quit)
 			break;
 		want_show = 0;
-		if (overlay_run(g) < 0 && !display_interrupted())
+		if (overlay_run(g, &pending) < 0 && !display_interrupted())
 			fprintf(stderr, "skippy-wl: overlay failed\n");
 	}
 	display_set_extra_fd(-1, NULL);

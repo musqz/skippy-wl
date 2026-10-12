@@ -10,6 +10,7 @@
 
 #include "capture.h"
 #include "config.h"
+#include "filter.h"
 #include "input.h"
 #include "layout.h"
 #include "overlay.h"
@@ -66,6 +67,7 @@ static struct {
 	struct surf *ptr_surf;
 	int quit;
 	struct toplevel *pick; /* window to activate after teardown */
+	const struct filter *filter;
 } st;
 
 static void draw(struct surf *s);
@@ -101,22 +103,30 @@ static int caps_done(void *arg)
 	return 1;
 }
 
+static int wanted(const struct toplevel *t)
+{
+	return filter_match(st.filter, t->app_id, t->title, toplevel_status(t));
+}
+
 static int tiles_init(struct globals *g)
 {
 	struct toplevel *t;
 	int i = 0, n = 0;
 
 	for (t = toplevels_first(); t; t = t->next)
-		n++;
+		n += wanted(t);
 	if (!n)
 		return 0;
 	st.tiles = calloc((size_t)n, sizeof(*st.tiles));
 	if (!st.tiles)
 		return -1;
 	st.n = n;
-	for (t = toplevels_first(); t; t = t->next, i++) {
+	for (t = toplevels_first(); t; t = t->next) {
 		struct tile *tl = &st.tiles[i];
 
+		if (!wanted(t))
+			continue;
+		i++;
 		tl->t = t;
 		tl->app_id = dup_or_empty(t->app_id);
 		tl->title = dup_or_empty(t->title);
@@ -690,13 +700,14 @@ static int quit_requested(void *arg)
 	return st.quit;
 }
 
-int overlay_run(struct globals *g)
+int overlay_run(struct globals *g, const struct filter *filter)
 {
 	struct output *o;
 	int rc = 0, input_up = 0;
 
 	memset(&st, 0, sizeof(st));
 	st.g = g;
+	st.filter = filter;
 	config_load(&cfg);
 	fonts_init();
 	active = 1;

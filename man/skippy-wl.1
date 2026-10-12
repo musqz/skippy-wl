@@ -5,7 +5,15 @@ skippy-wl \- window overview for labwc
 .B skippy-wl \-\-daemon
 .br
 .B skippy-wl
-.RB { \-\-toggle | \-\-show | \-\-quit }
+.RB { \-\-toggle | \-\-show }
+.RB [ \-\-app\-id
+.IR LIST ]
+.RB [ \-\-title
+.IR LIST ]
+.RB [ \-\-status
+.IR LIST ]
+.br
+.B skippy-wl \-\-quit
 .br
 .B skippy-wl \-\-version
 .SH DESCRIPTION
@@ -40,6 +48,41 @@ Stop the daemon.
 .TP
 .B \-\-version
 Print the version.
+.SH FILTERS
+.B \-\-show
+and
+.B \-\-toggle
+take filters that limit which windows are listed. All given filters must match.
+.TP
+.BI \-\-app\-id " LIST"
+Match the window's app id (the class), for example
+.IR kitty,foot .
+.TP
+.BI \-\-title " LIST"
+Match the window title, for example
+.IR "*vim*" .
+.TP
+.BI \-\-status " LIST"
+Match the window state:
+.BR minimized ,
+.BR maximized ,
+.BR fullscreen
+or
+.BR activated .
+.PP
+A
+.I LIST
+is comma separated glob patterns (* ? [...]), case insensitive; spaces around terms are ignored and \\, is a literal comma. A window matches if it matches any plain term and none of the terms that start with
+.BR ! .
+Examples:
+.IR "\-\-app\-id 'kitty,foot'" ,
+.IR "\-\-app\-id '!firefox'" ,
+.IR "\-\-status minimized" ,
+.IR "\-\-app\-id kitty \-\-status '!minimized'" .
+.PP
+A window whose state is not known (the compositor gave no matching handle) never matches a
+.B \-\-status
+filter. Nothing is shown if no window matches. Quote patterns so the shell does not expand them.
 .SH OVERLAY KEYS
 Defaults. Change them with
 .B bind.*

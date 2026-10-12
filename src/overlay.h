@@ -4,13 +4,14 @@
 
 #include <stdint.h>
 
+#include "filter.h"
 #include "globals.h"
 
 /*
- * Capture all toplevels, show the overlay on every output and block until the
+ * Capture the toplevels that match filter, show the overlay on every output and block until the
  * user picks a window (it is activated) or cancels. Returns -1 on setup failure.
  */
-int overlay_run(struct globals *g);
+int overlay_run(struct globals *g, const struct filter *filter);
 
 /* close the overlay without picking; no-op when it is not shown */
 void overlay_cancel(void);
