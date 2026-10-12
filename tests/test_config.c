@@ -30,45 +30,46 @@ int main(void)
 	CHECK(c.margin == 48 && c.spacing == 28);
 	CHECK(dabs(c.bg[3] - 1.0) < 1e-6);
 	CHECK(c.monitors == MON_EACH);
-	CHECK(config_set(&c, "monitors", "pointer") == 0);
+	CHECK(config_set(&c, "monitors.mode", "pointer") == 0);
 	CHECK(c.monitors == MON_POINTER);
-	CHECK(config_set(&c, "monitors", "all") < 0);
+	CHECK(config_set(&c, "monitors.mode", "all") < 0);
 	CHECK(c.pivot == 1 && c.switch_wait == 100);
-	CHECK(config_set(&c, "pivot", "false") == 0 && c.pivot == 0);
-	CHECK(config_set(&c, "pivot", "yes") < 0);
-	CHECK(config_set(&c, "switch_wait", "0") == 0 && c.switch_wait == 0);
-	CHECK(config_set(&c, "switch_wait", "-1") < 0);
+	CHECK(config_set(&c, "switch.pivot", "false") == 0 && c.pivot == 0);
+	CHECK(config_set(&c, "switch.pivot", "yes") < 0);
+	CHECK(config_set(&c, "switch.wait", "0") == 0 && c.switch_wait == 0);
+	CHECK(config_set(&c, "switch.wait", "-1") < 0);
 	CHECK(c.icon == 1 && c.icon_size == 48 && !strcmp(c.icon_theme, "hicolor"));
-	CHECK(config_set(&c, "icon", "false") == 0 && c.icon == 0);
-	CHECK(config_set(&c, "icon", "1") < 0);
-	CHECK(config_set(&c, "icon_size", "64") == 0 && c.icon_size == 64);
-	CHECK(config_set(&c, "icon_size", "8") < 0);
-	CHECK(config_set(&c, "icon_theme", "Papirus-Dark") == 0 && !strcmp(c.icon_theme, "Papirus-Dark"));
-	CHECK(config_set(&c, "icon_theme", "../x") < 0);
+	CHECK(config_set(&c, "icons.enabled", "false") == 0 && c.icon == 0);
+	CHECK(config_set(&c, "icons.enabled", "1") < 0);
+	CHECK(config_set(&c, "icons.size", "64") == 0 && c.icon_size == 64);
+	CHECK(config_set(&c, "icons.size", "8") < 0);
+	CHECK(config_set(&c, "icons.theme", "Papirus-Dark") == 0 && !strcmp(c.icon_theme, "Papirus-Dark"));
+	CHECK(config_set(&c, "icons.theme", "../x") < 0);
 	CHECK(config_action(&c, XKB_KEY_Escape) == ACT_CANCEL);
 	CHECK(config_action(&c, XKB_KEY_KP_Enter) == ACT_SELECT);
 	CHECK(config_action(&c, XKB_KEY_x) == -1);
 
-	CHECK(config_set(&c, "margin", "10") == 0 && c.margin == 10);
-	CHECK(config_set(&c, "margin", "-1") < 0 && c.margin == 10);
-	CHECK(config_set(&c, "margin", "12px") < 0 && c.margin == 10);
-	CHECK(config_set(&c, "spacing", "0") == 0 && c.spacing == 0);
+	CHECK(config_set(&c, "layout.margin", "10") == 0 && c.margin == 10);
+	CHECK(config_set(&c, "layout.margin", "-1") < 0 && c.margin == 10);
+	CHECK(config_set(&c, "layout.margin", "12px") < 0 && c.margin == 10);
+	CHECK(config_set(&c, "layout.spacing", "0") == 0 && c.spacing == 0);
 	CHECK(c.label == LABEL_TITLE);
-	CHECK(config_set(&c, "label", "app_id") == 0 && c.label == LABEL_APP_ID);
-	CHECK(config_set(&c, "label", "both") == 0 && c.label == LABEL_BOTH);
-	CHECK(config_set(&c, "label", "class") < 0 && c.label == LABEL_BOTH);
+	CHECK(config_set(&c, "layout.label", "app_id") == 0 && c.label == LABEL_APP_ID);
+	CHECK(config_set(&c, "layout.label", "both") == 0 && c.label == LABEL_BOTH);
+	CHECK(config_set(&c, "layout.label", "class") < 0 && c.label == LABEL_BOTH);
 	CHECK(config_action(&c, XKB_KEY_m) == ACT_MINIMIZE && config_action(&c, XKB_KEY_M) == ACT_MINIMIZE);
-	CHECK(config_set(&c, "font", "Monospace 9") == 0);
-	CHECK(config_set(&c, "font", "") < 0);
+	CHECK(config_set(&c, "layout.font", "Monospace 9") == 0);
+	CHECK(config_set(&c, "layout.font", "") < 0);
 	CHECK(config_set(&c, "nonsense", "1") < 0);
+	CHECK(config_set(&c, "margin", "1") < 0 && config_set(&c, "bind", "x") < 0);
 
-	CHECK(config_set(&c, "background", "#102030") == 0);
+	CHECK(config_set(&c, "colors.background", "#102030") == 0);
 	CHECK(dabs(c.bg[0] - 16 / 255.0) < 1e-6 && dabs(c.bg[3] - 1.0) < 1e-6);
-	CHECK(config_set(&c, "highlight", "#ff000080") == 0);
+	CHECK(config_set(&c, "colors.highlight", "#ff000080") == 0);
 	CHECK(dabs(c.highlight[0] - 1.0) < 1e-6 && dabs(c.highlight[3] - 128 / 255.0) < 1e-6);
-	CHECK(config_set(&c, "background", "red") < 0);
-	CHECK(config_set(&c, "background", "#12345") < 0);
-	CHECK(config_set(&c, "background", "#12345g") < 0);
+	CHECK(config_set(&c, "colors.background", "red") < 0);
+	CHECK(config_set(&c, "colors.background", "#12345") < 0);
+	CHECK(config_set(&c, "colors.background", "#12345g") < 0);
 
 	/* a bind line replaces the defaults for that action */
 	CHECK(config_set(&c, "bind.close", "x, q") == 0);
@@ -102,15 +103,18 @@ int main(void)
 		CHECK(mkdir(sub, 0700) == 0);
 		f = fopen(path, "w");
 		CHECK(f != NULL);
-		fprintf(f, "# comment\nmargin = 11\nspacing = 22\nbogus\nlabel_height = 33\n# ");
+		fprintf(f, "# comment\nwait = 99\n[layout]\nmargin = 11\nspacing = 22\nbogus\nlabel_height = 33\n# ");
 		for (i = 0; i < 400; i++)
 			fputc('x', f);
-		fprintf(f, "\nfont = Mono 9\nhighlight = #00ff00");
+		fprintf(f, "\nfont = Mono 9\n[layout\nspacing = 55\n[]\nspacing = 56\n[nosuch]\nspacing = 57\n"
+			"[ colors ]  # note\nhighlight = #00ff00\n[bind]\nclose = x\n");
 		fclose(f);
 		setenv("XDG_CONFIG_HOME", dir, 1);
 		config_load(&c);
 		CHECK(c.margin == 11 && c.spacing == 22 && c.label_h == 33);
+		CHECK(c.switch_wait == 100);
 		CHECK(strcmp(c.font, "Mono 9") == 0);
+		CHECK(config_action(&c, XKB_KEY_x) == ACT_CLOSE);
 		CHECK(dabs(c.highlight[1] - 1.0) < 1e-6);
 		unlink(path);
 		rmdir(sub);
@@ -140,14 +144,14 @@ int main(void)
 		CHECK(f != NULL);
 		if (!f)
 			return 1;
-		fprintf(f, "theme_file = %s\n", theme);
+		fprintf(f, "[colors]\ntheme_file = %s\n", theme);
 		fclose(f);
 		config_load(&c);
 		CHECK(dabs(c.highlight[0] - 0x11 / 255.0) < 1e-6 && dabs(c.highlight[2] - 0x33 / 255.0) < 1e-6);
 		CHECK(dabs(c.border[0] - 0x44 / 255.0) < 1e-6 && c.border[3] < 1.0);
 
 		f = fopen(cfg, "w");
-		fprintf(f, "theme_file = %s\nhighlight = #ff0000\n", theme);
+		fprintf(f, "[colors]\ntheme_file = %s\nhighlight = #ff0000\n", theme);
 		fclose(f);
 		config_load(&c);
 		CHECK(dabs(c.highlight[0] - 1.0) < 1e-6 && dabs(c.highlight[1]) < 1e-6);
@@ -155,7 +159,7 @@ int main(void)
 
 		/* an explicit value stays explicit even if a later line for it is invalid */
 		f = fopen(cfg, "w");
-		fprintf(f, "theme_file = %s\nhighlight = #00ff00\nhighlight = bogus\nborder = #0000ff\n", theme);
+		fprintf(f, "[colors]\ntheme_file = %s\nhighlight = #00ff00\nhighlight = bogus\nborder = #0000ff\n", theme);
 		fclose(f);
 		config_load(&c);
 		CHECK(dabs(c.highlight[1] - 1.0) < 1e-6 && dabs(c.highlight[0]) < 1e-6);
@@ -164,13 +168,13 @@ int main(void)
 		/* "~/" in theme_file expands to $HOME */
 		setenv("HOME", dir, 1);
 		f = fopen(cfg, "w");
-		fprintf(f, "theme_file = ~/theme\n");
+		fprintf(f, "[colors]\ntheme_file = ~/theme\n");
 		fclose(f);
 		config_load(&c);
 		CHECK(dabs(c.highlight[0] - 0x11 / 255.0) < 1e-6);
 
 		f = fopen(cfg, "w");
-		fprintf(f, "theme_file = %s/missing\n", dir);
+		fprintf(f, "[colors]\ntheme_file = %s/missing\n", dir);
 		fclose(f);
 		config_load(&c); /* warns on stderr, keeps the defaults */
 		CHECK(dabs(c.highlight[0] - 0.35) < 1e-6);

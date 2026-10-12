@@ -110,15 +110,15 @@ static int parse_color(const char *s, double out[4])
 
 int config_set(struct config *c, const char *key, const char *value)
 {
-	if (!strcmp(key, "margin"))
+	if (!strcmp(key, "layout.margin"))
 		return parse_int(value, 0, 1000, &c->margin);
-	if (!strcmp(key, "spacing"))
+	if (!strcmp(key, "layout.spacing"))
 		return parse_int(value, 0, 1000, &c->spacing);
-	if (!strcmp(key, "label_height"))
+	if (!strcmp(key, "layout.label_height"))
 		return parse_int(value, 8, 200, &c->label_h);
-	if (!strcmp(key, "icon_size"))
+	if (!strcmp(key, "icons.size"))
 		return parse_int(value, 16, 256, &c->icon_size);
-	if (!strcmp(key, "icon")) {
+	if (!strcmp(key, "icons.enabled")) {
 		if (!strcmp(value, "true"))
 			c->icon = 1;
 		else if (!strcmp(value, "false"))
@@ -127,15 +127,15 @@ int config_set(struct config *c, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(key, "icon_theme")) {
+	if (!strcmp(key, "icons.theme")) {
 		if (!*value || strlen(value) >= sizeof(c->icon_theme) || strchr(value, '/'))
 			return -1;
 		snprintf(c->icon_theme, sizeof(c->icon_theme), "%s", value);
 		return 0;
 	}
-	if (!strcmp(key, "switch_wait"))
+	if (!strcmp(key, "switch.wait"))
 		return parse_int(value, 0, 5000, &c->switch_wait);
-	if (!strcmp(key, "pivot")) {
+	if (!strcmp(key, "switch.pivot")) {
 		if (!strcmp(value, "true"))
 			c->pivot = 1;
 		else if (!strcmp(value, "false"))
@@ -144,7 +144,7 @@ int config_set(struct config *c, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(key, "label")) {
+	if (!strcmp(key, "layout.label")) {
 		if (!strcmp(value, "title"))
 			c->label = LABEL_TITLE;
 		else if (!strcmp(value, "app_id"))
@@ -155,7 +155,7 @@ int config_set(struct config *c, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(key, "monitors")) {
+	if (!strcmp(key, "monitors.mode")) {
 		if (!strcmp(value, "each"))
 			c->monitors = MON_EACH;
 		else if (!strcmp(value, "pointer"))
@@ -164,27 +164,27 @@ int config_set(struct config *c, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(key, "font")) {
+	if (!strcmp(key, "layout.font")) {
 		if (!*value || strlen(value) >= sizeof(c->font))
 			return -1;
 		snprintf(c->font, sizeof(c->font), "%s", value);
 		return 0;
 	}
-	if (!strcmp(key, "background"))
+	if (!strcmp(key, "colors.background"))
 		return parse_color(value, c->bg);
-	if (!strcmp(key, "highlight")) {
+	if (!strcmp(key, "colors.highlight")) {
 		if (parse_color(value, c->highlight) < 0)
 			return -1;
 		c->highlight_set = 1;
 		return 0;
 	}
-	if (!strcmp(key, "border")) {
+	if (!strcmp(key, "colors.border")) {
 		if (parse_color(value, c->border) < 0)
 			return -1;
 		c->border_set = 1;
 		return 0;
 	}
-	if (!strcmp(key, "theme_file")) {
+	if (!strcmp(key, "colors.theme_file")) {
 		if (strlen(value) >= sizeof(c->theme_file))
 			return -1;
 		snprintf(c->theme_file, sizeof(c->theme_file), "%s", value);
@@ -207,6 +207,16 @@ int config_action(const struct config *c, uint32_t keysym)
 			if (c->keys[a][i] && c->keys[a][i] == keysym)
 				return a;
 	return -1;
+}
+
+static const char *const sections[] = { "layout", "monitors", "switch", "icons", "colors", "bind" };
+
+static int known_section(const char *name)
+{
+	for (size_t i = 0; i < sizeof(sections) / sizeof(sections[0]); i++)
+		if (!strcmp(name, sections[i]))
+			return 1;
+	return 0;
 }
 
 static char *trim(char *s)
@@ -262,9 +272,9 @@ static void load_theme(struct config *c)
 void config_load(struct config *c)
 {
 	const char *xdg = getenv("XDG_CONFIG_HOME"), *home = getenv("HOME");
-	char path[PATH_MAX], line[256];
+	char path[PATH_MAX], line[256], section[32] = "", key[96];
 	FILE *f;
-	int n = 0;
+	int n = 0, skip = 0;
 
 	config_defaults(c);
 	if (xdg && *xdg)
@@ -288,14 +298,40 @@ void config_load(struct config *c)
 		}
 		if (!*s || *s == '#')
 			continue;
+		if (*s == '[') {
+			char *end = strchr(s, ']');
+
+			section[0] = 0;
+			skip = 1; /* the keys of a bad section are not reported one by one */
+			if (!end || (*trim(end + 1) && *trim(end + 1) != '#')) {
+				fprintf(stderr, "skippy-wl: %s:%d: invalid section header\n", path, n);
+				continue;
+			}
+			*end = 0;
+			s = trim(s + 1);
+			if (!known_section(s)) {
+				fprintf(stderr, "skippy-wl: %s:%d: unknown section '%s'\n", path, n, s);
+				continue;
+			}
+			snprintf(section, sizeof(section), "%s", s);
+			skip = 0;
+			continue;
+		}
+		if (skip)
+			continue;
 		eq = strchr(s, '=');
 		if (!eq) {
 			fprintf(stderr, "skippy-wl: %s:%d: expected key = value\n", path, n);
 			continue;
 		}
 		*eq = 0;
-		if (config_set(c, trim(s), trim(eq + 1)) < 0)
-			fprintf(stderr, "skippy-wl: %s:%d: invalid setting '%s'\n", path, n, trim(s));
+		if (!section[0]) {
+			fprintf(stderr, "skippy-wl: %s:%d: '%s' is outside a [section]\n", path, n, trim(s));
+			continue;
+		}
+		snprintf(key, sizeof(key), "%s.%s", section, trim(s));
+		if (config_set(c, key, trim(eq + 1)) < 0)
+			fprintf(stderr, "skippy-wl: %s:%d: invalid setting '%s'\n", path, n, key);
 	}
 	fclose(f);
 	load_theme(c);

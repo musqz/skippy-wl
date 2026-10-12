@@ -53,9 +53,9 @@ Copy the template and edit it:
     mkdir -p ~/.config/skippy-wl
     cp "${PREFIX:-$HOME/.local}/share/skippy-wl/skippy-wl.conf" ~/.config/skippy-wl/config
 
-To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc`.
+To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc` under `[colors]`.
 
-Settings: `margin`, `spacing`, `label_height`, `label` (`title`, `app_id`, `both`), `monitors` (`each`, `pointer`), `pivot`, `switch_wait`, `icon`, `icon_size`, `icon_theme`, `font`, `background`, `highlight`, `border`, `theme_file`, `bind.*`. Changes apply the next time the overlay opens.
+Sections: `[layout]` (`margin`, `spacing`, `label_height`, `label`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`), `[icons]` (`enabled`, `size`, `theme`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
 
 ## Development
     meson setup build && ninja -C build && meson test -C build
