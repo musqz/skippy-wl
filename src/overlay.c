@@ -66,7 +66,7 @@ static struct {
 	struct surf *surfs;
 	int sel;
 	struct surf *ptr_surf;
-	struct surf *target; /* monitors = pointer: the output that shows every window */
+	struct surf *target; /* monitors.mode = pointer: the output that shows every window */
 	int quit;
 	struct toplevel *pick; /* window to activate after teardown */
 	int dir; /* 1/-1: opened by --next/--prev */
@@ -608,7 +608,7 @@ static void surf_destroy(struct surf *s)
 
 /* ---- input ---- */
 
-/* monitors = pointer: show every window on s, the output the pointer first entered */
+/* monitors.mode = pointer: show every window on s, the output the pointer first entered */
 static void set_target(struct surf *s)
 {
 	if (cfg.monitors != MON_POINTER || st.target || !s)

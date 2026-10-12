@@ -34,7 +34,7 @@ struct config {
 void config_defaults(struct config *c);
 /* defaults, then ~/.config/skippy-wl/config; problems go to stderr and are skipped */
 void config_load(struct config *c);
-/* one "key = value" setting; -1 if the key or value is invalid */
+/* one setting as "section.key" (for example "layout.margin"); -1 if the key or value is invalid */
 int config_set(struct config *c, const char *key, const char *value);
 /* action bound to keysym, or -1 */
 int config_action(const struct config *c, uint32_t keysym);
