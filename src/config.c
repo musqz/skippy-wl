@@ -89,6 +89,17 @@ static int parse_int(const char *s, int lo, int hi, int *out)
 	return 0;
 }
 
+static int parse_bool(const char *s, int *out)
+{
+	if (!strcmp(s, "true"))
+		*out = 1;
+	else if (!strcmp(s, "false"))
+		*out = 0;
+	else
+		return -1;
+	return 0;
+}
+
 /* #RRGGBB or #RRGGBBAA */
 static int parse_color(const char *s, double out[4])
 {
@@ -120,15 +131,8 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 8, 200, &c->label_h);
 	if (!strcmp(key, "icons.size"))
 		return parse_int(value, 16, 256, &c->icon_size);
-	if (!strcmp(key, "icons.enabled")) {
-		if (!strcmp(value, "true"))
-			c->icon = 1;
-		else if (!strcmp(value, "false"))
-			c->icon = 0;
-		else
-			return -1;
-		return 0;
-	}
+	if (!strcmp(key, "icons.enabled"))
+		return parse_bool(value, &c->icon);
 	if (!strcmp(key, "icons.theme")) {
 		if (!*value || strlen(value) >= sizeof(c->icon_theme) || strchr(value, '/'))
 			return -1;
@@ -137,26 +141,12 @@ int config_set(struct config *c, const char *key, const char *value)
 	}
 	if (!strcmp(key, "animation.duration"))
 		return parse_int(value, 0, 1000, &c->anim_ms);
-	if (!strcmp(key, "animation.enabled")) {
-		if (!strcmp(value, "true"))
-			c->anim = 1;
-		else if (!strcmp(value, "false"))
-			c->anim = 0;
-		else
-			return -1;
-		return 0;
-	}
+	if (!strcmp(key, "animation.enabled"))
+		return parse_bool(value, &c->anim);
 	if (!strcmp(key, "switch.wait"))
 		return parse_int(value, 0, 5000, &c->switch_wait);
-	if (!strcmp(key, "switch.pivot")) {
-		if (!strcmp(value, "true"))
-			c->pivot = 1;
-		else if (!strcmp(value, "false"))
-			c->pivot = 0;
-		else
-			return -1;
-		return 0;
-	}
+	if (!strcmp(key, "switch.pivot"))
+		return parse_bool(value, &c->pivot);
 	if (!strcmp(key, "layout.label")) {
 		if (!strcmp(value, "title"))
 			c->label = LABEL_TITLE;

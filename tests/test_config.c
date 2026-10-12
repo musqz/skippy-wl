@@ -50,6 +50,8 @@ int main(void)
 	CHECK(config_set(&c, "animation.enabled", "yes") < 0);
 	CHECK(config_set(&c, "animation.duration", "0") == 0 && c.anim_ms == 0);
 	CHECK(config_set(&c, "animation.duration", "1001") < 0);
+	CHECK(config_set(&c, "animation.duration", "1000") == 0 && c.anim_ms == 1000);
+	CHECK(config_set(&c, "animation.enabled", "true") == 0 && c.anim == 1);
 	CHECK(config_action(&c, XKB_KEY_Escape) == ACT_CANCEL);
 	CHECK(config_action(&c, XKB_KEY_KP_Enter) == ACT_SELECT);
 	CHECK(config_action(&c, XKB_KEY_x) == -1);
@@ -124,13 +126,14 @@ int main(void)
 		for (i = 0; i < 300; i++)
 			fputc(' ', f);
 		/* a too long header drops its keys instead of passing them to the section before */
-		fprintf(f, "# note\nclose = y\n[ colors ]  # note\nhighlight = #00ff00 # green\nborder = #112233\t# tab\n"
+		fprintf(f, "# note\nclose = y\n[animation]\nduration = 321\n[ colors ]  # note\nhighlight = #00ff00 # green\nborder = #112233\t# tab\n"
 			"background = # nothing\n[layout]\nfont = # default\nmargin = 11 # px\n[bind]\nclose = x\n");
 		fclose(f);
 		setenv("XDG_CONFIG_HOME", dir, 1);
 		config_load(&c);
 		CHECK(c.margin == 11 && c.spacing == 22 && c.label_h == 33);
 		CHECK(c.switch_wait == 100 && c.label == LABEL_TITLE);
+		CHECK(c.anim_ms == 321);
 		CHECK(c.icon_size == 64 && config_action(&c, XKB_KEY_y) == -1);
 		CHECK(dabs(c.bg[3] - 1.0) < 1e-6 && dabs(c.bg[0]) < 1e-6);
 		CHECK(dabs(c.border[0] - 0x11 / 255.0) < 1e-6);
