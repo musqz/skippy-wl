@@ -45,6 +45,11 @@ int main(void)
 	CHECK(config_set(&c, "icons.size", "8") < 0);
 	CHECK(config_set(&c, "icons.theme", "Papirus-Dark") == 0 && !strcmp(c.icon_theme, "Papirus-Dark"));
 	CHECK(config_set(&c, "icons.theme", "../x") < 0);
+	CHECK(c.anim == 1 && c.anim_ms == 150);
+	CHECK(config_set(&c, "animation.enabled", "false") == 0 && c.anim == 0);
+	CHECK(config_set(&c, "animation.enabled", "yes") < 0);
+	CHECK(config_set(&c, "animation.duration", "0") == 0 && c.anim_ms == 0);
+	CHECK(config_set(&c, "animation.duration", "1001") < 0);
 	CHECK(config_action(&c, XKB_KEY_Escape) == ACT_CANCEL);
 	CHECK(config_action(&c, XKB_KEY_KP_Enter) == ACT_SELECT);
 	CHECK(config_action(&c, XKB_KEY_x) == -1);

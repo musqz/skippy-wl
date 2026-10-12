@@ -22,6 +22,7 @@ struct config {
 	enum monitor_mode monitors;
 	int icon, icon_size; /* app icon on each tile */
 	char icon_theme[64];
+	int anim, anim_ms; /* fade and grow when the overlay opens */
 	int pivot; /* release of the modifiers held at open picks the selection */
 	int switch_wait; /* ms before a --next/--prev overlay is drawn; 0 = at once */
 	char font[96];

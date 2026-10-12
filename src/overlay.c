@@ -72,6 +72,8 @@ static struct {
 	int dir; /* 1/-1: opened by --next/--prev */
 	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
 	int mods_seen, ptr_seen;
+	double anim_t0; /* ms when the overlay first showed; 0 = not yet */
+	int animating;
 	uint32_t held; /* modifiers down when the keyboard got focus */
 	const struct filter *filter;
 } st;
@@ -388,15 +390,35 @@ static void paint_icon(cairo_t *cr, cairo_surface_t *ic, int x, int y, double al
 	cairo_paint_with_alpha(cr, alpha);
 }
 
+/* 0..1, eased out; 1 once the open animation is over or switched off */
+static double anim_progress(void)
+{
+	double t;
+
+	if (!cfg.anim || !cfg.anim_ms)
+		return 1;
+	if (!st.anim_t0)
+		st.anim_t0 = now_ms();
+	t = (now_ms() - st.anim_t0) / cfg.anim_ms;
+	if (t >= 1)
+		return 1;
+	t = 1 - t;
+	return 1 - t * t * t;
+}
+
 static void render(struct surf *s, cairo_t *cr)
 {
+	double fade;
+
 	if (st.hidden) {
 		cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
 		cairo_paint(cr);
 		return;
 	}
+	fade = anim_progress();
+	st.animating = fade < 1;
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-	cairo_set_source_rgba(cr, cfg.bg[0], cfg.bg[1], cfg.bg[2], cfg.bg[3]);
+	cairo_set_source_rgba(cr, cfg.bg[0], cfg.bg[1], cfg.bg[2], cfg.bg[3] * fade);
 	cairo_paint(cr);
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 
@@ -410,6 +432,18 @@ static void render(struct surf *s, cairo_t *cr)
 		double dim = toplevel_status(tl->t) & STATUS_MINIMIZED ? 0.45 : 1.0;
 		char label[256];
 
+		if (st.animating) {
+			/* tile and label fade in and grow from 94% around the tile's center */
+			double sc = 0.94 + 0.06 * fade, cx = r->x + r->w / 2.0, cy = r->y + (r->h + cfg.label_h) / 2.0;
+
+			cairo_save(cr);
+			cairo_rectangle(cr, r->x - 8, r->y - 8, r->w + 16, r->h + cfg.label_h + 16);
+			cairo_clip(cr);
+			cairo_translate(cr, cx, cy);
+			cairo_scale(cr, sc, sc);
+			cairo_translate(cr, -cx, -cy);
+			cairo_push_group(cr);
+		}
 		if (s->scaled[p]) {
 			cairo_set_source_surface(cr, s->scaled[p], r->x, r->y);
 			cairo_paint_with_alpha(cr, dim);
@@ -453,6 +487,11 @@ static void render(struct surf *s, cairo_t *cr)
 
 		draw_text(cr, label_text(tl, label, sizeof(label)), r->x, r->y + r->h + 6, r->w, 0,
 			0, 0, (selected ? 1.0 : 0.7) * dim);
+		if (st.animating) {
+			cairo_pop_group_to_source(cr);
+			cairo_paint_with_alpha(cr, fade);
+			cairo_restore(cr);
+		}
 	}
 }
 
@@ -524,7 +563,7 @@ static void draw(struct surf *s)
 	cairo_surface_destroy(cs);
 
 	b->busy = 1;
-	s->dirty = 0;
+	s->dirty = st.animating; /* the next frame callback draws the next step */
 	wl_surface_attach(s->surface, b->buf, 0, 0);
 	wl_surface_damage(s->surface, 0, 0, s->w, s->h);
 	s->frame_cb = wl_surface_frame(s->surface);

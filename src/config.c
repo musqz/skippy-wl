@@ -52,6 +52,8 @@ void config_defaults(struct config *c)
 	c->icon = 1;
 	c->icon_size = 48;
 	snprintf(c->icon_theme, sizeof(c->icon_theme), "hicolor");
+	c->anim = 1;
+	c->anim_ms = 150;
 	c->pivot = 1;
 	c->switch_wait = 100;
 	snprintf(c->font, sizeof(c->font), "Sans 11");
@@ -133,6 +135,17 @@ int config_set(struct config *c, const char *key, const char *value)
 		snprintf(c->icon_theme, sizeof(c->icon_theme), "%s", value);
 		return 0;
 	}
+	if (!strcmp(key, "animation.duration"))
+		return parse_int(value, 0, 1000, &c->anim_ms);
+	if (!strcmp(key, "animation.enabled")) {
+		if (!strcmp(value, "true"))
+			c->anim = 1;
+		else if (!strcmp(value, "false"))
+			c->anim = 0;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(key, "switch.wait"))
 		return parse_int(value, 0, 5000, &c->switch_wait);
 	if (!strcmp(key, "switch.pivot")) {
@@ -209,7 +222,7 @@ int config_action(const struct config *c, uint32_t keysym)
 	return -1;
 }
 
-static const char *const sections[] = { "layout", "monitors", "switch", "icons", "colors", "bind" };
+static const char *const sections[] = { "layout", "monitors", "switch", "icons", "animation", "colors", "bind" };
 
 static int known_section(const char *name)
 {
