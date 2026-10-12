@@ -106,6 +106,7 @@ static int usage(const char *argv0)
 {
 	fprintf(stderr, "skippy-wl %s\nusage: %s --daemon\n"
 		"       %s --toggle | --show [--app-id LIST] [--title LIST] [--status LIST]\n"
+		"                          [--next | --prev]\n"
 		"       %s --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
 		"       %s --capture-all <dir>\n"
@@ -115,7 +116,7 @@ static int usage(const char *argv0)
 
 enum mode { MODE_SHOW, MODE_DAEMON, MODE_CAPTURE, MODE_CAPTURE_ALL };
 
-static int run_mode(struct globals *g, enum mode mode, char **argv, const struct filter *filter)
+static int run_mode(struct globals *g, enum mode mode, char **argv, const struct filter *filter, int dir)
 {
 	struct toplevel *ts[256], *t;
 	int n = 0;
@@ -128,7 +129,7 @@ static int run_mode(struct globals *g, enum mode mode, char **argv, const struct
 	if (mode == MODE_DAEMON)
 		return daemon_run(g);
 	if (mode == MODE_SHOW)
-		return overlay_run(g, filter) < 0 ? 1 : 0;
+		return overlay_run(g, filter, dir) < 0 ? 1 : 0;
 	if (mode == MODE_CAPTURE) {
 		t = toplevels_find(argv[2]);
 		if (!t) {
@@ -154,7 +155,7 @@ int main(int argc, char **argv)
 	struct globals g;
 	struct filter filter;
 	enum mode mode;
-	int rc;
+	int rc, dir = 0;
 
 	memset(&filter, 0, sizeof(filter));
 
@@ -171,6 +172,16 @@ int main(int argc, char **argv)
 		for (int i = 2; i < argc; i += 2) {
 			const char *key, *val;
 			int n;
+
+			if (!strcmp(argv[i], "--next") || !strcmp(argv[i], "--prev")) {
+				dir = argv[i][2] == 'n' ? 1 : -1;
+				n = snprintf(cmd + len, sizeof(cmd) - len, "\tdir=%s", argv[i] + 2);
+				if (n < 0 || (size_t)n >= sizeof(cmd) - len)
+					return usage(argv[0]);
+				len += (size_t)n;
+				i--;
+				continue;
+			}
 
 			if (strncmp(argv[i], "--", 2)) {
 				fprintf(stderr, "skippy-wl: unexpected argument '%s'\n", argv[i]);
@@ -233,7 +244,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "compositor lacks wlr-layer-shell, wlr-foreign-toplevel-management, a seat (v5+) or an output\n");
 		rc = 1;
 	} else {
-		rc = run_mode(&g, mode, argv, &filter);
+		rc = run_mode(&g, mode, argv, &filter, dir);
 	}
 	globals_finish(&g);
 	return rc;

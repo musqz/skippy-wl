@@ -103,6 +103,7 @@ static void k_modifiers(void *d, struct wl_keyboard *k, uint32_t serial, uint32_
 	(void)d; (void)k; (void)serial;
 	if (xkb_state)
 		xkb_state_update_mask(xkb_state, depressed, latched, locked, 0, 0, group);
+	overlay_modifiers(depressed);
 }
 
 static void k_enter(void *d, struct wl_keyboard *k, uint32_t serial, struct wl_surface *s,

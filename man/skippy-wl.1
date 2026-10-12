@@ -12,6 +12,7 @@ skippy-wl \- window overview for labwc
 .IR LIST ]
 .RB [ \-\-status
 .IR LIST ]
+.RB [ \-\-next | \-\-prev ]
 .br
 .B skippy-wl \-\-quit
 .br
@@ -48,6 +49,20 @@ Stop the daemon.
 .TP
 .B \-\-version
 Print the version.
+.SH SWITCH MODE
+.TP
+.B \-\-next
+Open on the previous window (second in the order). Hold the modifier of the key binding, press
+.B Tab
+(or run the command again) to move on, release the modifier to focus the selected window.
+.TP
+.B \-\-prev
+Open on the last window; the other direction of
+.BR \-\-next .
+.PP
+If the modifier is released before
+.B switch_wait
+passes, the window is focused without drawing the overlay. With no modifier held, the switch happens at once.
 .SH FILTERS
 .B \-\-show
 and
@@ -145,6 +160,17 @@ shows the windows of each monitor on that monitor.
 shows all windows on the monitor the pointer enters when the overlay opens; the other monitors stay empty.
 Default
 .IR each .
+.TP
+.B pivot
+switch mode: focus the selected window when the modifiers held at open are released.
+.B false
+leaves the overlay open until Enter, a click or Escape. Default
+.IR true .
+.TP
+.B switch_wait
+Milliseconds to wait before drawing the overlay in switch mode (needs
+.BR pivot ).
+0 draws at once. Default 100.
 .TP
 .B font
 Pango font description for titles. Default

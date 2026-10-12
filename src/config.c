@@ -49,6 +49,8 @@ void config_defaults(struct config *c)
 	c->margin = 48;
 	c->spacing = 28;
 	c->label_h = 28;
+	c->pivot = 1;
+	c->switch_wait = 100;
 	snprintf(c->font, sizeof(c->font), "Sans 11");
 	c->bg[3] = 1.0;
 	c->highlight[0] = 0.35;
@@ -111,6 +113,17 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 0, 1000, &c->spacing);
 	if (!strcmp(key, "label_height"))
 		return parse_int(value, 8, 200, &c->label_h);
+	if (!strcmp(key, "switch_wait"))
+		return parse_int(value, 0, 5000, &c->switch_wait);
+	if (!strcmp(key, "pivot")) {
+		if (!strcmp(value, "true"))
+			c->pivot = 1;
+		else if (!strcmp(value, "false"))
+			c->pivot = 0;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(key, "label")) {
 		if (!strcmp(value, "title"))
 			c->label = LABEL_TITLE;
