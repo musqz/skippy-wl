@@ -5,6 +5,7 @@
 
 #include "capture.h"
 #include "daemon.h"
+#include "filter.h"
 #include "ipc.h"
 #include "globals.h"
 #include "overlay.h"
@@ -104,16 +105,17 @@ static int run(struct wl_display *dpy, struct toplevel **ts, int n, const char *
 static int usage(const char *argv0)
 {
 	fprintf(stderr, "skippy-wl %s\nusage: %s --daemon\n"
-		"       %s --toggle | --show | --quit\n"
+		"       %s --toggle | --show [--app-id LIST] [--title LIST] [--status LIST]\n"
+		"       %s --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
 		"       %s --capture-all <dir>\n"
-		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0);
+		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0);
 	return 1;
 }
 
 enum mode { MODE_SHOW, MODE_DAEMON, MODE_CAPTURE, MODE_CAPTURE_ALL };
 
-static int run_mode(struct globals *g, enum mode mode, char **argv)
+static int run_mode(struct globals *g, enum mode mode, char **argv, const struct filter *filter)
 {
 	struct toplevel *ts[256], *t;
 	int n = 0;
@@ -126,7 +128,7 @@ static int run_mode(struct globals *g, enum mode mode, char **argv)
 	if (mode == MODE_DAEMON)
 		return daemon_run(g);
 	if (mode == MODE_SHOW)
-		return overlay_run(g) < 0 ? 1 : 0;
+		return overlay_run(g, filter) < 0 ? 1 : 0;
 	if (mode == MODE_CAPTURE) {
 		t = toplevels_find(argv[2]);
 		if (!t) {
@@ -150,8 +152,11 @@ static int run_mode(struct globals *g, enum mode mode, char **argv)
 int main(int argc, char **argv)
 {
 	struct globals g;
+	struct filter filter;
 	enum mode mode;
 	int rc;
+
+	memset(&filter, 0, sizeof(filter));
 
 	if (argc == 2 && !strcmp(argv[1], "--version")) {
 		printf("skippy-wl %s\n", SKIPPY_VERSION);
@@ -159,20 +164,55 @@ int main(int argc, char **argv)
 	}
 	if (argc == 2 && !strcmp(argv[1], "--daemon")) {
 		mode = MODE_DAEMON;
-	} else if (argc == 2 && (!strcmp(argv[1], "--show") || !strcmp(argv[1], "--toggle") ||
-			!strcmp(argv[1], "--quit"))) {
-		int sent = ipc_send(argv[1] + 2);
+	} else if (argc >= 2 && (!strcmp(argv[1], "--show") || !strcmp(argv[1], "--toggle"))) {
+		char cmd[IPC_CMD_LEN];
+		size_t len = (size_t)snprintf(cmd, sizeof(cmd), "%s", argv[1] + 2);
+
+		for (int i = 2; i < argc; i += 2) {
+			const char *key, *val;
+			int n;
+
+			if (strncmp(argv[i], "--", 2)) {
+				fprintf(stderr, "skippy-wl: unexpected argument '%s'\n", argv[i]);
+				return usage(argv[0]);
+			}
+			key = argv[i] + 2;
+			if (i + 1 >= argc) {
+				fprintf(stderr, "skippy-wl: %s needs a value\n", argv[i]);
+				return 1;
+			}
+			val = argv[i + 1];
+			if (strpbrk(val, "\t\r\n")) {
+				fprintf(stderr, "skippy-wl: %s: tabs and line breaks are not allowed\n", argv[i]);
+				return 1;
+			}
+			if (filter_set(&filter, key, val) < 0) {
+				fprintf(stderr, "skippy-wl: invalid %s: unknown option, unknown status name or value too long\n",
+					argv[i]);
+				return 1;
+			}
+			n = snprintf(cmd + len, sizeof(cmd) - len, "\t%s=%s", key, val);
+			if (n < 0 || (size_t)n >= sizeof(cmd) - len) {
+				fprintf(stderr, "skippy-wl: filters too long\n");
+				return 1;
+			}
+			len += (size_t)n;
+		}
+		int sent = ipc_send(cmd);
 
 		if (sent != -1)
 			return sent == 0 ? 0 : 1;
-		if (!strcmp(argv[1], "--quit")) {
-			fprintf(stderr, "skippy-wl: no daemon running\n");
-			return 1;
-		}
 		/* no daemon: show once in this process */
 		if (!strcmp(argv[1], "--toggle"))
 			fprintf(stderr, "skippy-wl: no daemon running, showing once (start one with --daemon)\n");
 		mode = MODE_SHOW;
+	} else if (argc == 2 && !strcmp(argv[1], "--quit")) {
+		int sent = ipc_send("quit");
+
+		if (sent != -1)
+			return sent == 0 ? 0 : 1;
+		fprintf(stderr, "skippy-wl: no daemon running\n");
+		return 1;
 	} else if (argc == 4 && !strcmp(argv[1], "--capture")) {
 		mode = MODE_CAPTURE;
 	} else if (argc == 3 && !strcmp(argv[1], "--capture-all")) {
@@ -193,7 +233,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "compositor lacks wlr-layer-shell, wlr-foreign-toplevel-management, a seat (v5+) or an output\n");
 		rc = 1;
 	} else {
-		rc = run_mode(&g, mode, argv);
+		rc = run_mode(&g, mode, argv, &filter);
 	}
 	globals_finish(&g);
 	return rc;

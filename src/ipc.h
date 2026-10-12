@@ -4,6 +4,8 @@
 
 #include <stddef.h>
 
+#define IPC_CMD_LEN 1024 /* longest command line, including filters */
+
 /* daemon: listening socket fd, -1 on error, -2 if another daemon already owns the socket */
 int ipc_listen(void);
 /* daemon: accept one client and read its command line into buf; returns the client fd or -1 */
