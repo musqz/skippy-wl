@@ -1,0 +1,23 @@
+# claude code
+CLAUDE.md
+claude.md
+.claude/
+
+# build
+build/
+*.o
+*.a
+*.so
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+
+# arch packaging
+/pkg/
+/packaging/src/
+/packaging/pkg/
+*.pkg.tar.zst
+*.pkg.tar.xz
+/packaging/*.tar.gz
