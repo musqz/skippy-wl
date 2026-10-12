@@ -50,7 +50,7 @@ void config_defaults(struct config *c)
 	c->spacing = 28;
 	c->label_h = 28;
 	snprintf(c->font, sizeof(c->font), "Sans 11");
-	c->bg[3] = 0.72;
+	c->bg[3] = 1.0;
 	c->highlight[0] = 0.35;
 	c->highlight[1] = 0.6;
 	c->highlight[2] = 1.0;

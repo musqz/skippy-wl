@@ -28,6 +28,7 @@ int main(void)
 
 	config_defaults(&c);
 	CHECK(c.margin == 48 && c.spacing == 28);
+	CHECK(dabs(c.bg[3] - 1.0) < 1e-6);
 	CHECK(config_action(&c, XKB_KEY_Escape) == ACT_CANCEL);
 	CHECK(config_action(&c, XKB_KEY_KP_Enter) == ACT_SELECT);
 	CHECK(config_action(&c, XKB_KEY_x) == -1);
