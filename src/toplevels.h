@@ -30,6 +30,8 @@ void toplevels_set_closed_cb(void (*cb)(struct toplevel *));
 /* 0 on success, -1 when the window has no trusted wlr pair. Activate also unminimizes and switches workspace on labwc. */
 int toplevel_activate(struct toplevel *t, struct wl_seat *seat);
 int toplevel_close(struct toplevel *t);
+/* forget an output that went away */
+void toplevels_output_removed(const struct wl_output *out);
 /* 1 if the window is on the output, or if its outputs are unknown */
 int toplevel_on_output(const struct toplevel *t, const struct wl_output *out);
 

@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "capture.h"
+#include "daemon.h"
+#include "ipc.h"
 #include "globals.h"
 #include "overlay.h"
 #include "toplevels.h"
@@ -101,14 +103,17 @@ static int run(struct wl_display *dpy, struct toplevel **ts, int n, const char *
 
 static int usage(const char *argv0)
 {
-	fprintf(stderr, "skippy-wl %s\nusage: %s --show\n"
+	fprintf(stderr, "skippy-wl %s\nusage: %s --daemon\n"
+		"       %s --toggle | --show | --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
 		"       %s --capture-all <dir>\n"
-		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0);
+		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0);
 	return 1;
 }
 
-static int run_mode(struct globals *g, int show, int one, char **argv)
+enum mode { MODE_SHOW, MODE_DAEMON, MODE_CAPTURE, MODE_CAPTURE_ALL };
+
+static int run_mode(struct globals *g, enum mode mode, char **argv)
 {
 	struct toplevel *ts[256], *t;
 	int n = 0;
@@ -118,10 +123,11 @@ static int run_mode(struct globals *g, int show, int one, char **argv)
 	wl_display_roundtrip(g->display);
 	wl_display_roundtrip(g->display);
 
-	if (show) {
+	if (mode == MODE_DAEMON)
+		return daemon_run(g);
+	if (mode == MODE_SHOW)
 		return overlay_run(g) < 0 ? 1 : 0;
-	}
-	if (one) {
+	if (mode == MODE_CAPTURE) {
 		t = toplevels_find(argv[2]);
 		if (!t) {
 			fprintf(stderr, "no toplevel with identifier %s\n", argv[2]);
@@ -144,15 +150,37 @@ static int run_mode(struct globals *g, int show, int one, char **argv)
 int main(int argc, char **argv)
 {
 	struct globals g;
-	int rc, show = argc == 2 && !strcmp(argv[1], "--show");
-	int one = argc == 4 && !strcmp(argv[1], "--capture");
+	enum mode mode;
+	int rc;
 
 	if (argc == 2 && !strcmp(argv[1], "--version")) {
 		printf("skippy-wl %s\n", SKIPPY_VERSION);
 		return 0;
 	}
-	if (!show && !one && !(argc == 3 && !strcmp(argv[1], "--capture-all")))
+	if (argc == 2 && !strcmp(argv[1], "--daemon")) {
+		mode = MODE_DAEMON;
+	} else if (argc == 2 && (!strcmp(argv[1], "--show") || !strcmp(argv[1], "--toggle") ||
+			!strcmp(argv[1], "--quit"))) {
+		int sent = ipc_send(argv[1] + 2);
+
+		if (sent != -1)
+			return sent == 0 ? 0 : 1;
+		if (!strcmp(argv[1], "--quit")) {
+			fprintf(stderr, "skippy-wl: no daemon running\n");
+			return 1;
+		}
+		/* no daemon: show once in this process */
+		if (!strcmp(argv[1], "--toggle"))
+			fprintf(stderr, "skippy-wl: no daemon running, showing once (start one with --daemon)\n");
+		mode = MODE_SHOW;
+	} else if (argc == 4 && !strcmp(argv[1], "--capture")) {
+		mode = MODE_CAPTURE;
+	} else if (argc == 3 && !strcmp(argv[1], "--capture-all")) {
+		mode = MODE_CAPTURE_ALL;
+	} else {
 		return usage(argv[0]);
+	}
+
 	if (globals_init(&g) < 0) {
 		fprintf(stderr, "cannot connect to wayland display\n");
 		return 1;
@@ -160,11 +188,12 @@ int main(int argc, char **argv)
 	if (!g.shm || !g.list || !g.source_mgr || !g.copy_mgr) {
 		fprintf(stderr, "compositor lacks ext-foreign-toplevel-list, ext-image-capture-source or ext-image-copy-capture\n");
 		rc = 1;
-	} else if (show && (!g.compositor || !g.layer_shell || !g.seat_name || !g.outputs || !g.toplevel_mgr)) {
+	} else if ((mode == MODE_SHOW || mode == MODE_DAEMON) &&
+			(!g.compositor || !g.layer_shell || !g.seat_name || !g.outputs || !g.toplevel_mgr)) {
 		fprintf(stderr, "compositor lacks wlr-layer-shell, wlr-foreign-toplevel-management, a seat (v5+) or an output\n");
 		rc = 1;
 	} else {
-		rc = run_mode(&g, show, one, argv);
+		rc = run_mode(&g, mode, argv);
 	}
 	globals_finish(&g);
 	return rc;

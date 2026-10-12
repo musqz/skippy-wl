@@ -44,7 +44,7 @@ protocols_dep = declare_dependency(
 
 executable('skippy-wl',
   'src/main.c', 'src/capture.c', 'src/toplevels.c', 'src/globals.c', 'src/wlutil.c',
-  'src/layout.c', 'src/input.c', 'src/overlay.c',
+  'src/layout.c', 'src/input.c', 'src/overlay.c', 'src/config.c', 'src/ipc.c', 'src/daemon.c',
   dependencies: [protocols_dep, cairo, xkbcommon, pangocairo],
   install: false)
 
@@ -54,3 +54,8 @@ executable('skippy-wl-probe', 'src/probe.c',
 test_layout = executable('test_layout', 'tests/test_layout.c', 'src/layout.c',
   include_directories: include_directories('src'))
 test('layout', test_layout)
+
+test_config = executable('test_config', 'tests/test_config.c', 'src/config.c',
+  include_directories: include_directories('src'),
+  dependencies: [xkbcommon])
+test('config', test_config)

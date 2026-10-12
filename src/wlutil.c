@@ -1,11 +1,38 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <errno.h>
 #include <poll.h>
+#include <signal.h>
 #include <sys/mman.h>
 #include <time.h>
 #include <unistd.h>
 
 #include "wlutil.h"
+
+static int extra_fd = -1;
+static void (*extra_cb)(void);
+static volatile sig_atomic_t interrupted;
+static const sigset_t *wait_mask;
+
+void display_set_extra_fd(int fd, void (*cb)(void))
+{
+	extra_fd = fd;
+	extra_cb = cb;
+}
+
+void display_interrupt(void)
+{
+	interrupted = 1;
+}
+
+int display_interrupted(void)
+{
+	return interrupted;
+}
+
+void display_set_wait_mask(const sigset_t *mask)
+{
+	wait_mask = mask;
+}
 
 double now_ms(void)
 {
@@ -20,9 +47,11 @@ int display_wait(struct wl_display *dpy, int (*done)(void *), void *arg, int tim
 	double end = now_ms() + timeout_ms;
 
 	while (!done(arg)) {
-		struct pollfd p = { wl_display_get_fd(dpy), POLLIN, 0 };
+		struct pollfd p[2] = { { wl_display_get_fd(dpy), POLLIN, 0 }, { extra_fd, POLLIN, 0 } };
 		int left = timeout_ms < 0 ? -1 : (int)(end - now_ms()), pr;
 
+		if (interrupted)
+			return -1;
 		while (wl_display_prepare_read(dpy) != 0)
 			wl_display_dispatch_pending(dpy);
 		if (wl_display_flush(dpy) < 0) {
@@ -30,9 +59,15 @@ int display_wait(struct wl_display *dpy, int (*done)(void *), void *arg, int tim
 				wl_display_cancel_read(dpy);
 				return -1;
 			}
-			p.events |= POLLOUT;
+			p[0].events |= POLLOUT;
 		}
-		pr = timeout_ms >= 0 && left <= 0 ? 0 : poll(&p, 1, left);
+		if (timeout_ms >= 0 && left <= 0) {
+			pr = 0;
+		} else {
+			struct timespec ts = { left / 1000, (left % 1000) * 1000000L };
+
+			pr = ppoll(p, 2, left < 0 ? NULL : &ts, wait_mask);
+		}
 		if (pr < 0 && errno == EINTR) {
 			wl_display_cancel_read(dpy);
 			continue;
@@ -41,7 +76,7 @@ int display_wait(struct wl_display *dpy, int (*done)(void *), void *arg, int tim
 			wl_display_cancel_read(dpy);
 			return -1;
 		}
-		if (p.revents & POLLIN) {
+		if (p[0].revents & POLLIN) {
 			if (wl_display_read_events(dpy) < 0)
 				return -1;
 		} else {
@@ -49,6 +84,8 @@ int display_wait(struct wl_display *dpy, int (*done)(void *), void *arg, int tim
 		}
 		if (wl_display_dispatch_pending(dpy) < 0)
 			return -1;
+		if (extra_fd >= 0 && (p[1].revents & POLLIN) && extra_cb)
+			extra_cb();
 	}
 	return 0;
 }

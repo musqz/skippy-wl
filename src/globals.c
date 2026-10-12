@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "globals.h"
+#include "toplevels.h"
 
 static void r_global(void *d, struct wl_registry *r, uint32_t name, const char *iface, uint32_t v)
 {
@@ -34,6 +35,7 @@ static void r_global(void *d, struct wl_registry *r, uint32_t name, const char *
 
 		if (!o)
 			return;
+		o->name = name;
 		o->wl = wl_registry_bind(r, name, &wl_output_interface, 1);
 		o->next = g->outputs;
 		g->outputs = o;
@@ -42,7 +44,21 @@ static void r_global(void *d, struct wl_registry *r, uint32_t name, const char *
 
 static void r_remove(void *d, struct wl_registry *r, uint32_t name)
 {
-	(void)d; (void)r; (void)name;
+	struct globals *g = d;
+	struct output **p;
+
+	(void)r;
+	for (p = &g->outputs; *p; p = &(*p)->next) {
+		struct output *o = *p;
+
+		if (o->name != name)
+			continue;
+		*p = o->next;
+		toplevels_output_removed(o->wl);
+		wl_output_destroy(o->wl);
+		free(o);
+		return;
+	}
 }
 
 static const struct wl_registry_listener reg_l = { r_global, r_remove };
