@@ -1,90 +1,15 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-#include <errno.h>
-#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
-#include <wayland-client.h>
 
 #include "capture.h"
+#include "globals.h"
+#include "overlay.h"
 #include "toplevels.h"
+#include "wlutil.h"
 
 #define WAIT_MS 5000
-
-static struct wl_shm *shm;
-static struct ext_foreign_toplevel_list_v1 *list;
-static struct ext_foreign_toplevel_image_capture_source_manager_v1 *source_mgr;
-static struct ext_image_copy_capture_manager_v1 *copy_mgr;
-
-static void r_global(void *d, struct wl_registry *r, uint32_t name, const char *iface, uint32_t v)
-{
-	(void)d; (void)v;
-	if (!strcmp(iface, wl_shm_interface.name))
-		shm = wl_registry_bind(r, name, &wl_shm_interface, 1);
-	else if (!strcmp(iface, ext_foreign_toplevel_list_v1_interface.name))
-		list = wl_registry_bind(r, name, &ext_foreign_toplevel_list_v1_interface, 1);
-	else if (!strcmp(iface, ext_foreign_toplevel_image_capture_source_manager_v1_interface.name))
-		source_mgr = wl_registry_bind(r, name,
-			&ext_foreign_toplevel_image_capture_source_manager_v1_interface, 1);
-	else if (!strcmp(iface, ext_image_copy_capture_manager_v1_interface.name))
-		copy_mgr = wl_registry_bind(r, name,
-			&ext_image_copy_capture_manager_v1_interface, 1);
-}
-
-static void r_remove(void *d, struct wl_registry *r, uint32_t n)
-{
-	(void)d; (void)r; (void)n;
-}
-
-static const struct wl_registry_listener reg_l = { r_global, r_remove };
-
-static double now_ms(void)
-{
-	struct timespec ts;
-
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return ts.tv_sec * 1e3 + ts.tv_nsec / 1e6;
-}
-
-/* dispatch until fn() is true; -1 on timeout or display error */
-static int wait_until(struct wl_display *dpy, int (*fn)(void *), void *arg)
-{
-	double end = now_ms() + WAIT_MS;
-
-	while (!fn(arg)) {
-		struct pollfd p = { wl_display_get_fd(dpy), POLLIN, 0 };
-		int left = (int)(end - now_ms()), pr;
-
-		while (wl_display_prepare_read(dpy) != 0)
-			wl_display_dispatch_pending(dpy);
-		if (wl_display_flush(dpy) < 0) {
-			if (errno != EAGAIN) {
-				wl_display_cancel_read(dpy);
-				return -1;
-			}
-			p.events |= POLLOUT;
-		}
-		pr = left > 0 ? poll(&p, 1, left) : 0;
-		if (pr < 0 && errno == EINTR) {
-			wl_display_cancel_read(dpy);
-			continue;
-		}
-		if (pr <= 0) {
-			wl_display_cancel_read(dpy);
-			return -1;
-		}
-		if (p.revents & POLLIN) {
-			if (wl_display_read_events(dpy) < 0)
-				return -1;
-		} else {
-			wl_display_cancel_read(dpy);
-		}
-		if (wl_display_dispatch_pending(dpy) < 0)
-			return -1;
-	}
-	return 0;
-}
 
 struct job {
 	char app_id[32], title[32]; /* copied: the toplevel may close while we wait */
@@ -144,7 +69,7 @@ static int run(struct wl_display *dpy, struct toplevel **ts, int n, const char *
 			return 1;
 		}
 	}
-	if (wait_until(dpy, all_done, &j) < 0)
+	if (display_wait(dpy, all_done, &j, WAIT_MS) < 0)
 		fprintf(stderr, "timeout or display error while capturing\n");
 	j.total = now_ms() - j.t0;
 	for (int i = 0; i < n; i++) {
@@ -176,39 +101,32 @@ static int run(struct wl_display *dpy, struct toplevel **ts, int n, const char *
 
 static int usage(const char *argv0)
 {
-	fprintf(stderr, "skippy-wl %s\nusage: %s --capture <identifier> <out.png>\n"
-		"       %s --capture-all <dir>\n       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0);
+	fprintf(stderr, "skippy-wl %s\nusage: %s --show\n"
+		"       %s --capture <identifier> <out.png>\n"
+		"       %s --capture-all <dir>\n"
+		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0);
 	return 1;
 }
 
-int main(int argc, char **argv)
+static int run_mode(struct globals *g, int show, int one, char **argv)
 {
-	struct wl_display *dpy;
 	struct toplevel *ts[256], *t;
-	int n = 0, one = argc == 4 && !strcmp(argv[1], "--capture");
+	int n = 0;
 
-	if (argc == 2 && !strcmp(argv[1], "--version")) {
-		printf("skippy-wl %s\n", SKIPPY_VERSION);
-		return 0;
-	}
-	if (!one && !(argc == 3 && !strcmp(argv[1], "--capture-all")))
-		return usage(argv[0]);
-	dpy = wl_display_connect(NULL);
-	if (!dpy) {
-		fprintf(stderr, "cannot connect to wayland display\n");
-		return 1;
-	}
-	wl_registry_add_listener(wl_display_get_registry(dpy), &reg_l, NULL);
-	wl_display_roundtrip(dpy);
-	if (!shm || !list || !source_mgr || !copy_mgr) {
-		fprintf(stderr, "compositor lacks ext-foreign-toplevel-list, ext-image-capture-source or ext-image-copy-capture\n");
-		return 1;
-	}
-	toplevels_init(list);
-	capture_init(shm, source_mgr, copy_mgr);
-	wl_display_roundtrip(dpy);
-	wl_display_roundtrip(dpy);
+	toplevels_init(g->list);
+	capture_init(g->shm, g->source_mgr, g->copy_mgr);
+	wl_display_roundtrip(g->display);
+	wl_display_roundtrip(g->display);
 
+	if (show) {
+		char *id;
+		int rc = overlay_run(g, &id);
+
+		if (id)
+			printf("%s\n", id);
+		free(id);
+		return rc < 0 ? 1 : 0;
+	}
 	if (one) {
 		t = toplevels_find(argv[2]);
 		if (!t) {
@@ -216,7 +134,7 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		ts[n++] = t;
-		return run(dpy, ts, n, NULL, argv[3]);
+		return run(g->display, ts, n, NULL, argv[3]);
 	}
 	for (t = toplevels_first(); t && n < 256; t = t->next)
 		ts[n++] = t;
@@ -226,5 +144,34 @@ int main(int argc, char **argv)
 		fprintf(stderr, "no toplevels\n");
 		return 1;
 	}
-	return run(dpy, ts, n, argv[2], NULL);
+	return run(g->display, ts, n, argv[2], NULL);
+}
+
+int main(int argc, char **argv)
+{
+	struct globals g;
+	int rc, show = argc == 2 && !strcmp(argv[1], "--show");
+	int one = argc == 4 && !strcmp(argv[1], "--capture");
+
+	if (argc == 2 && !strcmp(argv[1], "--version")) {
+		printf("skippy-wl %s\n", SKIPPY_VERSION);
+		return 0;
+	}
+	if (!show && !one && !(argc == 3 && !strcmp(argv[1], "--capture-all")))
+		return usage(argv[0]);
+	if (globals_init(&g) < 0) {
+		fprintf(stderr, "cannot connect to wayland display\n");
+		return 1;
+	}
+	if (!g.shm || !g.list || !g.source_mgr || !g.copy_mgr) {
+		fprintf(stderr, "compositor lacks ext-foreign-toplevel-list, ext-image-capture-source or ext-image-copy-capture\n");
+		rc = 1;
+	} else if (show && (!g.compositor || !g.layer_shell || !g.seat_name || !g.outputs)) {
+		fprintf(stderr, "compositor lacks wlr-layer-shell, a seat (v5+) or an output\n");
+		rc = 1;
+	} else {
+		rc = run_mode(&g, show, one, argv);
+	}
+	globals_finish(&g);
+	return rc;
 }
