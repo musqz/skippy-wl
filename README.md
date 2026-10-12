@@ -1,5 +1,5 @@
 # skippy-wl
-Expose/Paging tool like skippy-xd but for wayland
+Expose tool like skippy-xd but for wayland
 
 # Unstable
 
