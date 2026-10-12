@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "capture.h"
+#include "wlutil.h"
 
 #define DRM_ARGB8888 0x34325241 /* 'AR24' */
 #define DRM_XRGB8888 0x34325258 /* 'XR24' */
@@ -29,29 +30,10 @@ static void fail(struct capture *c, uint32_t reason)
 
 static int alloc_buffer(struct capture *c)
 {
-	struct wl_shm_pool *pool;
-	int fd = memfd_create("skippy-wl", MFD_CLOEXEC);
-
-	if (fd < 0)
-		return -1;
 	c->stride = c->width * 4;
-	c->size = (size_t)c->stride * c->height;
-	if (ftruncate(fd, (off_t)c->size) < 0)
-		goto err;
-	c->data = mmap(NULL, c->size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	if (c->data == MAP_FAILED) {
-		c->data = NULL;
-		goto err;
-	}
-	pool = wl_shm_create_pool(shm, fd, (int32_t)c->size);
-	c->buffer = wl_shm_pool_create_buffer(pool, 0, (int32_t)c->width, (int32_t)c->height,
-		(int32_t)c->stride, c->format);
-	wl_shm_pool_destroy(pool);
-	close(fd);
-	return 0;
-err:
-	close(fd);
-	return -1;
+	c->buffer = shm_buffer_create(shm, (int)c->width, (int)c->height, c->format,
+		&c->data, &c->size);
+	return c->buffer ? 0 : -1;
 }
 
 static void f_transform(void *d, struct ext_image_copy_capture_frame_v1 *f, uint32_t t)

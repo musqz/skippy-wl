@@ -9,6 +9,7 @@ add_project_arguments('-D_GNU_SOURCE',
 wl_client = dependency('wayland-client')
 cairo = dependency('cairo')
 xkbcommon = dependency('xkbcommon')
+pangocairo = dependency('pangocairo')
 scanner = find_program('wayland-scanner')
 
 proto_xml = [
@@ -41,9 +42,15 @@ protocols_dep = declare_dependency(
   sources: proto_hdrs,
   dependencies: wl_client)
 
-executable('skippy-wl', 'src/main.c', 'src/capture.c', 'src/toplevels.c',
-  dependencies: [protocols_dep, cairo, xkbcommon],
+executable('skippy-wl',
+  'src/main.c', 'src/capture.c', 'src/toplevels.c', 'src/globals.c', 'src/wlutil.c',
+  'src/layout.c', 'src/input.c', 'src/overlay.c',
+  dependencies: [protocols_dep, cairo, xkbcommon, pangocairo],
   install: false)
 
 executable('skippy-wl-probe', 'src/probe.c',
   dependencies: [protocols_dep])
+
+test_layout = executable('test_layout', 'tests/test_layout.c', 'src/layout.c',
+  include_directories: include_directories('src'))
+test('layout', test_layout)
