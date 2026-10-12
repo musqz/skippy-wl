@@ -9,7 +9,7 @@
 #include "config.h"
 
 static const char *const action_names[ACT_COUNT] = {
-	"select", "cancel", "close", "left", "right", "up", "down", "home", "end", "next", "prev",
+	"select", "cancel", "close", "minimize", "left", "right", "up", "down", "home", "end", "next", "prev",
 };
 
 /* all-or-nothing: an invalid or over-long list leaves the current binds untouched */
@@ -55,9 +55,12 @@ void config_defaults(struct config *c)
 	c->highlight[1] = 0.6;
 	c->highlight[2] = 1.0;
 	c->highlight[3] = 1.0;
+	c->border[0] = c->border[1] = c->border[2] = 1.0;
+	c->border[3] = 0.18;
 	set_keys(c, ACT_SELECT, "Return, KP_Enter");
 	set_keys(c, ACT_CANCEL, "Escape");
 	set_keys(c, ACT_CLOSE, "Delete");
+	set_keys(c, ACT_MINIMIZE, "m, M");
 	set_keys(c, ACT_LEFT, "Left");
 	set_keys(c, ACT_RIGHT, "Right");
 	set_keys(c, ACT_UP, "Up");
@@ -108,6 +111,17 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 0, 1000, &c->spacing);
 	if (!strcmp(key, "label_height"))
 		return parse_int(value, 8, 200, &c->label_h);
+	if (!strcmp(key, "label")) {
+		if (!strcmp(value, "title"))
+			c->label = LABEL_TITLE;
+		else if (!strcmp(value, "app_id"))
+			c->label = LABEL_APP_ID;
+		else if (!strcmp(value, "both"))
+			c->label = LABEL_BOTH;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(key, "font")) {
 		if (!*value || strlen(value) >= sizeof(c->font))
 			return -1;
@@ -116,8 +130,24 @@ int config_set(struct config *c, const char *key, const char *value)
 	}
 	if (!strcmp(key, "background"))
 		return parse_color(value, c->bg);
-	if (!strcmp(key, "highlight"))
-		return parse_color(value, c->highlight);
+	if (!strcmp(key, "highlight")) {
+		if (parse_color(value, c->highlight) < 0)
+			return -1;
+		c->highlight_set = 1;
+		return 0;
+	}
+	if (!strcmp(key, "border")) {
+		if (parse_color(value, c->border) < 0)
+			return -1;
+		c->border_set = 1;
+		return 0;
+	}
+	if (!strcmp(key, "theme_file")) {
+		if (strlen(value) >= sizeof(c->theme_file))
+			return -1;
+		snprintf(c->theme_file, sizeof(c->theme_file), "%s", value);
+		return 0;
+	}
 	if (!strncmp(key, "bind.", 5)) {
 		for (int a = 0; a < ACT_COUNT; a++) {
 			if (strcmp(key + 5, action_names[a]))
@@ -147,6 +177,44 @@ static char *trim(char *s)
 	while (end > s && isspace((unsigned char)end[-1]))
 		*--end = 0;
 	return s;
+}
+
+/* "window.active.border.color: #rrggbb" lines of a labwc theme */
+static void load_theme(struct config *c)
+{
+	const char *home = getenv("HOME");
+	char path[PATH_MAX], line[256];
+	FILE *f;
+
+	if (!c->theme_file[0])
+		return;
+	if (c->theme_file[0] == '~' && c->theme_file[1] == '/' && home)
+		snprintf(path, sizeof(path), "%s%s", home, c->theme_file + 1);
+	else
+		snprintf(path, sizeof(path), "%s", c->theme_file);
+	f = fopen(path, "r");
+	if (!f) {
+		fprintf(stderr, "skippy-wl: cannot read theme_file %s\n", path);
+		return;
+	}
+	while (fgets(line, sizeof(line), f)) {
+		char *colon = strchr(line, ':'), *val;
+		double rgba[4];
+
+		if (!colon)
+			continue;
+		*colon = 0;
+		val = trim(colon + 1);
+		if (parse_color(val, rgba) < 0)
+			continue;
+		if (!c->highlight_set && !strcmp(trim(line), "window.active.border.color"))
+			memcpy(c->highlight, rgba, sizeof(rgba));
+		else if (!c->border_set && !strcmp(trim(line), "window.inactive.border.color")) {
+			memcpy(c->border, rgba, sizeof(rgba));
+			c->border[3] = 0.6; /* the inactive border is quieter than the selected one */
+		}
+	}
+	fclose(f);
 }
 
 void config_load(struct config *c)
@@ -188,4 +256,5 @@ void config_load(struct config *c)
 			fprintf(stderr, "skippy-wl: %s:%d: invalid setting '%s'\n", path, n, trim(s));
 	}
 	fclose(f);
+	load_theme(c);
 }

@@ -103,6 +103,9 @@ Focus the selected window.
 .B Delete
 Close the selected window.
 .TP
+.B m
+Minimize the selected window, or restore it if it is minimized. Minimized windows are dimmed.
+.TP
 .B Escape
 Close the overlay.
 .PP
@@ -126,6 +129,15 @@ Pixels between tiles. Default 28.
 .B label_height
 Pixels reserved under each tile for the title. Default 28.
 .TP
+.B label
+Text under each tile:
+.BR title ,
+.B app_id
+or
+.BR both .
+Default
+.IR title .
+.TP
 .B font
 Pango font description for titles. Default
 .IR "Sans 11" .
@@ -136,7 +148,24 @@ Overlay color as #RRGGBB or #RRGGBBAA. Default #000000b8.
 .B highlight
 Selection color as #RRGGBB or #RRGGBBAA. Default #5999ff.
 .TP
-.B bind.select bind.cancel bind.close bind.left bind.right bind.up bind.down bind.home bind.end bind.next bind.prev
+.B border
+Border of unselected tiles, #RRGGBB or #RRGGBBAA. Default #ffffff2e.
+.TP
+.B theme_file
+Labwc theme file, read each time the overlay opens. Only a leading
+.B ~/
+is expanded. The selected tile uses
+.B window.active.border.color
+and other tiles use
+.B window.inactive.border.color
+at 60% alpha.
+.B highlight
+and
+.B border
+in the config file win. Example:
+.IR ~/.local/share/themes/noctalia/openbox-3/themerc .
+.TP
+.B bind.select bind.cancel bind.close bind.minimize bind.left bind.right bind.up bind.down bind.home bind.end bind.next bind.prev
 Up to four xkb keysym names, comma separated. A line replaces the default keys of that action. A key moves from its old action to the new one.
 .SH FILES
 .TP
