@@ -38,7 +38,7 @@ Add to `~/.config/labwc/rc.xml`, inside `<keyboard>`:
       <action name="Execute" command="skippy-wl --toggle"/>
     </keybind>
 
-Or switch like Alt-Tab: hold the modifier, tap Tab to cycle through the windows, release to pick. `W-S-Tab` steps back.
+Or switch like Alt-Tab: hold the modifier, tap Tab to cycle through the windows, release to pick. Pause for a second before releasing to keep the overlay open (`hold`). `W-S-Tab` steps back.
 
     <keybind key="W-Tab">
       <action name="Execute" command="skippy-wl --show --next"/>
@@ -55,7 +55,7 @@ Copy the template and edit it:
 
 To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc` under `[colors]`.
 
-Sections: `[layout]` (`margin`, `spacing`, `label_height`, `label`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`), `[icons]` (`enabled`, `size`, `theme`), `[animation]` (`enabled`, `duration`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
+Sections: `[layout]` (`margin`, `spacing`, `label_height`, `label`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`, `hold`), `[icons]` (`enabled`, `size`, `theme`), `[animation]` (`enabled`, `duration`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
 
 ## Development
     meson setup build && ninja -C build && meson test -C build

@@ -56,6 +56,7 @@ void config_defaults(struct config *c)
 	c->anim_ms = 150;
 	c->pivot = 1;
 	c->switch_wait = 100;
+	c->switch_hold = 1000;
 	snprintf(c->font, sizeof(c->font), "Sans 11");
 	c->bg[3] = 1.0;
 	c->highlight[0] = 0.35;
@@ -143,6 +144,8 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 0, 1000, &c->anim_ms);
 	if (!strcmp(key, "animation.enabled"))
 		return parse_bool(value, &c->anim);
+	if (!strcmp(key, "switch.hold"))
+		return parse_int(value, 0, 60000, &c->switch_hold);
 	if (!strcmp(key, "switch.wait"))
 		return parse_int(value, 0, 5000, &c->switch_wait);
 	if (!strcmp(key, "switch.pivot"))
