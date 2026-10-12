@@ -38,7 +38,7 @@ Add to `~/.config/labwc/rc.xml`, inside `<keyboard>`:
       <action name="Execute" command="skippy-wl --toggle"/>
     </keybind>
 
-Or switch like Alt-Tab: hold the modifier, tap Tab to flip between the last two windows, release to pick.
+Or switch like Alt-Tab: hold the modifier, tap Tab to cycle through the windows, release to pick. `W-S-Tab` steps back.
 
     <keybind key="W-Tab">
       <action name="Execute" command="skippy-wl --show --next"/>

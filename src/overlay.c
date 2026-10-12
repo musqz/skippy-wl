@@ -70,7 +70,6 @@ static struct {
 	int quit;
 	struct toplevel *pick; /* window to activate after teardown */
 	int dir; /* 1/-1: opened by --next/--prev */
-	int last_req, rev; /* last --next/--prev given, and whether repeats of it currently step backwards */
 	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
 	int mods_seen, ptr_seen;
 	uint32_t held; /* modifiers down when the keyboard got focus */
@@ -669,7 +668,6 @@ static void set_sel(int to)
 {
 	if (to != st.sel) {
 		st.sel = to;
-		st.last_req = st.rev = 0; /* moved by hand: a repeated command starts over */
 		redraw_all();
 	}
 }
@@ -793,13 +791,8 @@ void overlay_modifiers(uint32_t depressed)
 
 void overlay_cycle(int dir)
 {
-	/* the same command again turns around; the other one steps in its own direction */
-	int rev = dir == st.last_req ? !st.rev : 0;
-
-	cycle(rev ? -dir : dir);
-	/* after cycle(): moving the selection resets the state */
-	st.last_req = dir;
-	st.rev = rev;
+	if (!st.quit)
+		cycle(dir);
 }
 
 static double ptr_x, ptr_y;
@@ -874,7 +867,6 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir)
 	st.g = g;
 	st.filter = filter;
 	st.dir = dir;
-	st.last_req = dir;
 	config_load(&cfg);
 	fonts_init();
 	active = 1;
