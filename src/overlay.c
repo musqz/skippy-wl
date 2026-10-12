@@ -7,18 +7,15 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
-#include <xkbcommon/xkbcommon.h>
 
 #include "capture.h"
+#include "config.h"
 #include "input.h"
 #include "layout.h"
 #include "overlay.h"
 #include "toplevels.h"
 #include "wlutil.h"
 
-#define MARGIN 48
-#define SPACING 28
-#define LABEL_H 28
 #define CAPTURE_WAIT_MS 1500
 #define PLACEHOLDER_W 640
 #define PLACEHOLDER_H 400
@@ -55,6 +52,10 @@ struct surf {
 	cairo_surface_t **scaled;
 	int cols;
 };
+
+static struct config cfg;
+static int active;
+static PangoFontDescription *font, *font_big;
 
 static struct {
 	struct globals *g;
@@ -229,8 +230,8 @@ static void relayout(struct surf *s)
 	}
 	for (int p = 0; p < s->nvis; p++)
 		src[p] = st.tiles[s->vis[p]].size;
-	s->cols = layout_grid(src, s->nvis, (struct size){ s->w - 2 * MARGIN, s->h - 2 * MARGIN },
-		SPACING, LABEL_H, s->rects);
+	s->cols = layout_grid(src, s->nvis, (struct size){ s->w - 2 * cfg.margin, s->h - 2 * cfg.margin },
+		cfg.spacing, cfg.label_h, s->rects);
 	free(src);
 
 	for (int p = 0; p < s->nvis; p++) {
@@ -238,8 +239,8 @@ static void relayout(struct surf *s)
 		struct tile *tl = &st.tiles[s->vis[p]];
 		cairo_t *cr;
 
-		r->x += MARGIN;
-		r->y += MARGIN;
+		r->x += cfg.margin;
+		r->y += cfg.margin;
 		if (!tl->full)
 			continue;
 		/* scale once to tile size; drawing then only blits */
@@ -256,7 +257,7 @@ static void relayout(struct surf *s)
 /* tile index under the point, or -1 */
 static int hit_test(struct surf *s, double x, double y)
 {
-	int pad = SPACING / 2;
+	int pad = cfg.spacing / 2;
 
 	if (!s->rects)
 		return -1;
@@ -264,7 +265,7 @@ static int hit_test(struct surf *s, double x, double y)
 		struct rect *r = &s->rects[p];
 
 		if (x >= r->x - pad && x < r->x + r->w + pad &&
-				y >= r->y - pad && y < r->y + r->h + LABEL_H + pad)
+				y >= r->y - pad && y < r->y + r->h + cfg.label_h + pad)
 			return s->vis[p];
 	}
 	return -1;
@@ -272,16 +273,28 @@ static int hit_test(struct surf *s, double x, double y)
 
 /* ---- drawing ---- */
 
-static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int size_pt,
+static void fonts_init(void)
+{
+	font = pango_font_description_from_string(cfg.font);
+	/* a family-only font string has no size */
+	if (pango_font_description_get_size(font) == 0)
+		pango_font_description_set_size(font, 11 * PANGO_SCALE);
+	font_big = pango_font_description_copy(font);
+	if (pango_font_description_get_size_is_absolute(font))
+		pango_font_description_set_absolute_size(font_big,
+			pango_font_description_get_size(font) * 1.8);
+	else
+		pango_font_description_set_size(font_big,
+			(gint)(pango_font_description_get_size(font) * 1.8));
+}
+
+static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int big,
 		int center_v, int h, double alpha)
 {
 	PangoLayout *pl = pango_cairo_create_layout(cr);
-	PangoFontDescription *fd = pango_font_description_new();
 	int tw, th;
 
-	pango_font_description_set_family(fd, "Sans");
-	pango_font_description_set_size(fd, size_pt * PANGO_SCALE);
-	pango_layout_set_font_description(pl, fd);
+	pango_layout_set_font_description(pl, big ? font_big : font);
 	pango_layout_set_text(pl, text, -1);
 	pango_layout_set_width(pl, w * PANGO_SCALE);
 	pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_END);
@@ -290,14 +303,13 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int si
 	cairo_set_source_rgba(cr, 1, 1, 1, alpha);
 	cairo_move_to(cr, x, center_v ? y + (h - th) / 2.0 : y);
 	pango_cairo_show_layout(cr, pl);
-	pango_font_description_free(fd);
 	g_object_unref(pl);
 }
 
 static void render(struct surf *s, cairo_t *cr)
 {
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-	cairo_set_source_rgba(cr, 0, 0, 0, 0.72);
+	cairo_set_source_rgba(cr, cfg.bg[0], cfg.bg[1], cfg.bg[2], cfg.bg[3]);
 	cairo_paint(cr);
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 
@@ -314,11 +326,12 @@ static void render(struct surf *s, cairo_t *cr)
 			cairo_set_source_rgba(cr, 0.16, 0.16, 0.18, 1);
 			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
 			cairo_fill(cr);
-			draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 20, 1, r->h, 0.8);
+			draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8);
 		}
 
 		if (selected) {
-			cairo_set_source_rgba(cr, 0.35, 0.6, 1, 1);
+			cairo_set_source_rgba(cr, cfg.highlight[0], cfg.highlight[1], cfg.highlight[2],
+				cfg.highlight[3]);
 			cairo_set_line_width(cr, 4);
 			cairo_rectangle(cr, r->x - 2, r->y - 2, r->w + 4, r->h + 4);
 		} else {
@@ -328,7 +341,7 @@ static void render(struct surf *s, cairo_t *cr)
 		}
 		cairo_stroke(cr);
 
-		draw_text(cr, tl->title[0] ? tl->title : tl->app_id, r->x, r->y + r->h + 6, r->w, 11,
+		draw_text(cr, tl->title[0] ? tl->title : tl->app_id, r->x, r->y + r->h + 6, r->w, 0,
 			0, 0, selected ? 1.0 : 0.7);
 	}
 }
@@ -583,41 +596,40 @@ void overlay_key(uint32_t sym)
 
 	if (st.quit)
 		return;
-	switch (sym) {
-	case XKB_KEY_Escape:
+	switch (config_action(&cfg, sym)) {
+	case ACT_CANCEL:
 		st.quit = 1;
 		break;
-	case XKB_KEY_Return:
-	case XKB_KEY_KP_Enter:
+	case ACT_SELECT:
 		choose(st.sel);
 		break;
-	case XKB_KEY_Delete:
+	case ACT_CLOSE:
 		close_tile(st.sel);
 		break;
-	case XKB_KEY_Left:
+	case ACT_LEFT:
 		move_horiz(-1);
 		break;
-	case XKB_KEY_Right:
+	case ACT_RIGHT:
 		move_horiz(1);
 		break;
-	case XKB_KEY_Up:
+	case ACT_UP:
 		move_vert(-1);
 		break;
-	case XKB_KEY_Down:
+	case ACT_DOWN:
 		move_vert(1);
 		break;
-	case XKB_KEY_Home:
+	case ACT_HOME:
 		if ((s = active_surf()))
 			select_pos(s, 0);
 		break;
-	case XKB_KEY_End:
+	case ACT_END:
 		if ((s = active_surf()))
 			select_pos(s, s->nvis - 1);
 		break;
-	case XKB_KEY_Tab:
+	case ACT_NEXT:
 		cycle(1);
 		break;
-	case XKB_KEY_ISO_Left_Tab:
+	case ACT_PREV:
 		cycle(-1);
 		break;
 	}
@@ -685,6 +697,9 @@ int overlay_run(struct globals *g)
 
 	memset(&st, 0, sizeof(st));
 	st.g = g;
+	config_load(&cfg);
+	fonts_init();
+	active = 1;
 	toplevels_set_closed_cb(on_toplevel_closed);
 	if (tiles_init(g) < 0) {
 		rc = -1;
@@ -710,7 +725,8 @@ out:
 	if (st.pick) {
 		/* focus the pick only after the overlay is gone, or the compositor hands focus back */
 		wl_display_roundtrip(g->display);
-		if (toplevel_activate(st.pick, input_seat()) < 0)
+		/* the window may have closed during the roundtrip */
+		if (st.pick && toplevel_activate(st.pick, input_seat()) < 0)
 			fprintf(stderr, "skippy-wl: cannot activate this window (no wlr handle paired)\n");
 		wl_display_roundtrip(g->display);
 	}
@@ -719,5 +735,18 @@ out:
 	toplevels_set_closed_cb(NULL);
 	tiles_finish();
 	wl_display_roundtrip(g->display);
+	pango_font_description_free(font);
+	pango_font_description_free(font_big);
+	active = 0;
 	return rc;
+}
+
+void overlay_cancel(void)
+{
+	st.quit = 1;
+}
+
+int overlay_active(void)
+{
+	return active;
 }

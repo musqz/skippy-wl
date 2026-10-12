@@ -94,6 +94,9 @@ static void h_closed(void *d, struct ext_foreign_toplevel_handle_v1 *h)
 	for (p = &head; *p != t; p = &(*p)->next)
 		;
 	*p = t->next;
+	/* with no windows left, a bad pairing can be forgotten */
+	if (!head && !whead)
+		pairing_broken = 0;
 	ext_foreign_toplevel_handle_v1_destroy(h);
 	free(t->identifier);
 	free(t->title);
@@ -306,4 +309,12 @@ int toplevel_on_output(const struct toplevel *t, const struct wl_output *out)
 		if (t->w->outs[i] == out)
 			return 1;
 	return 0;
+}
+
+void toplevels_output_removed(const struct wl_output *out)
+{
+	for (struct wtop *w = whead; w; w = w->next)
+		for (int i = 0; i < w->n_outs; i++)
+			if (w->outs[i] == out)
+				w->outs[i] = w->outs[--w->n_outs];
 }

@@ -11,6 +11,7 @@
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 struct output {
+	uint32_t name; /* registry name */
 	struct wl_output *wl;
 	struct output *next;
 };

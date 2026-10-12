@@ -12,6 +12,10 @@
  */
 int overlay_run(struct globals *g);
 
+/* close the overlay without picking; no-op when it is not shown */
+void overlay_cancel(void);
+int overlay_active(void);
+
 /* input events, called from input.c */
 void overlay_key(uint32_t keysym);
 void overlay_pointer_motion(struct wl_surface *surface, double x, double y);
