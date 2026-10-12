@@ -298,6 +298,30 @@ static void fonts_init(void)
 			(gint)(pango_font_description_get_size(font) * 1.8));
 }
 
+/* label under a tile; falls back to the other field when the chosen one is empty */
+static const char *label_text(const struct tile *tl, char *buf, size_t len)
+{
+	const char *title = tl->title, *app = tl->app_id;
+
+	switch (cfg.label) {
+	case LABEL_APP_ID:
+		return app[0] ? app : title;
+	case LABEL_BOTH:
+		if (app[0] && title[0]) {
+			const char *bad;
+
+			snprintf(buf, len, "%s: %s", app, title);
+			/* a cut inside a multibyte character would make pango complain on every redraw */
+			if (!g_utf8_validate(buf, -1, &bad))
+				buf[bad - buf] = 0;
+			return buf;
+		}
+		return title[0] ? title : app;
+	default:
+		return title[0] ? title : app;
+	}
+}
+
 static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int big,
 		int center_v, int h, double alpha)
 {
@@ -329,14 +353,18 @@ static void render(struct surf *s, cairo_t *cr)
 		struct tile *tl = &st.tiles[i];
 		int selected = i == st.sel;
 
+		/* minimized windows are dimmed */
+		double dim = toplevel_status(tl->t) & STATUS_MINIMIZED ? 0.45 : 1.0;
+		char label[256];
+
 		if (s->scaled[p]) {
 			cairo_set_source_surface(cr, s->scaled[p], r->x, r->y);
-			cairo_paint(cr);
+			cairo_paint_with_alpha(cr, dim);
 		} else {
-			cairo_set_source_rgba(cr, 0.16, 0.16, 0.18, 1);
+			cairo_set_source_rgba(cr, 0.16, 0.16, 0.18, dim);
 			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
 			cairo_fill(cr);
-			draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8);
+			draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8 * dim);
 		}
 
 		if (selected) {
@@ -345,14 +373,14 @@ static void render(struct surf *s, cairo_t *cr)
 			cairo_set_line_width(cr, 4);
 			cairo_rectangle(cr, r->x - 2, r->y - 2, r->w + 4, r->h + 4);
 		} else {
-			cairo_set_source_rgba(cr, 1, 1, 1, 0.18);
+			cairo_set_source_rgba(cr, cfg.border[0], cfg.border[1], cfg.border[2], cfg.border[3]);
 			cairo_set_line_width(cr, 1);
 			cairo_rectangle(cr, r->x + 0.5, r->y + 0.5, r->w - 1, r->h - 1);
 		}
 		cairo_stroke(cr);
 
-		draw_text(cr, tl->title[0] ? tl->title : tl->app_id, r->x, r->y + r->h + 6, r->w, 0,
-			0, 0, selected ? 1.0 : 0.7);
+		draw_text(cr, label_text(tl, label, sizeof(label)), r->x, r->y + r->h + 6, r->w, 0,
+			0, 0, (selected ? 1.0 : 0.7) * dim);
 	}
 }
 
@@ -543,6 +571,15 @@ static void close_tile(int i)
 		fprintf(stderr, "skippy-wl: cannot close this window (no wlr handle paired)\n");
 }
 
+static void minimize_tile(int i)
+{
+	if (st.quit || i < 0 || i >= st.n)
+		return;
+	/* the tile dims when the new state arrives */
+	if (toplevel_set_minimized(st.tiles[i].t, !(toplevel_status(st.tiles[i].t) & STATUS_MINIMIZED)) < 0)
+		fprintf(stderr, "skippy-wl: cannot minimize this window (no wlr handle paired)\n");
+}
+
 static void set_sel(int to)
 {
 	if (to != st.sel) {
@@ -615,6 +652,9 @@ void overlay_key(uint32_t sym)
 		break;
 	case ACT_CLOSE:
 		close_tile(st.sel);
+		break;
+	case ACT_MINIMIZE:
+		minimize_tile(st.sel);
 		break;
 	case ACT_LEFT:
 		move_horiz(-1);
@@ -712,6 +752,7 @@ int overlay_run(struct globals *g, const struct filter *filter)
 	fonts_init();
 	active = 1;
 	toplevels_set_closed_cb(on_toplevel_closed);
+	toplevels_set_changed_cb(redraw_all);
 	if (tiles_init(g) < 0) {
 		rc = -1;
 		goto out;
@@ -744,6 +785,7 @@ out:
 	if (input_up)
 		input_finish();
 	toplevels_set_closed_cb(NULL);
+	toplevels_set_changed_cb(NULL);
 	tiles_finish();
 	wl_display_roundtrip(g->display);
 	pango_font_description_free(font);

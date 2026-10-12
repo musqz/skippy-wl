@@ -36,6 +36,11 @@ int main(void)
 	CHECK(config_set(&c, "margin", "-1") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "margin", "12px") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "spacing", "0") == 0 && c.spacing == 0);
+	CHECK(c.label == LABEL_TITLE);
+	CHECK(config_set(&c, "label", "app_id") == 0 && c.label == LABEL_APP_ID);
+	CHECK(config_set(&c, "label", "both") == 0 && c.label == LABEL_BOTH);
+	CHECK(config_set(&c, "label", "class") < 0 && c.label == LABEL_BOTH);
+	CHECK(config_action(&c, XKB_KEY_m) == ACT_MINIMIZE && config_action(&c, XKB_KEY_M) == ACT_MINIMIZE);
 	CHECK(config_set(&c, "font", "Monospace 9") == 0);
 	CHECK(config_set(&c, "font", "") < 0);
 	CHECK(config_set(&c, "nonsense", "1") < 0);
@@ -92,6 +97,70 @@ int main(void)
 		CHECK(dabs(c.highlight[1] - 1.0) < 1e-6);
 		unlink(path);
 		rmdir(sub);
+		rmdir(dir);
+	}
+
+	/* theme_file: border colors come from a labwc theme, explicit settings win */
+	{
+		char dir[] = "/tmp/skippy-wl-theme-XXXXXX";
+		char theme[160], cfgdir[160], cfg[192];
+		FILE *f;
+
+		CHECK(mkdtemp(dir) != NULL);
+		snprintf(theme, sizeof(theme), "%s/theme", dir);
+		snprintf(cfgdir, sizeof(cfgdir), "%s/skippy-wl", dir);
+		snprintf(cfg, sizeof(cfg), "%s/config", cfgdir);
+		CHECK(mkdir(cfgdir, 0700) == 0);
+		f = fopen(theme, "w");
+		CHECK(f != NULL);
+		if (!f)
+			return 1;
+		fprintf(f, "# comment\nwindow.active.border.color: #112233\nwindow.inactive.border.color: #445566\nwindow.active.title.bg.color: #ffffff\n");
+		fclose(f);
+		setenv("XDG_CONFIG_HOME", dir, 1);
+
+		f = fopen(cfg, "w");
+		CHECK(f != NULL);
+		if (!f)
+			return 1;
+		fprintf(f, "theme_file = %s\n", theme);
+		fclose(f);
+		config_load(&c);
+		CHECK(dabs(c.highlight[0] - 0x11 / 255.0) < 1e-6 && dabs(c.highlight[2] - 0x33 / 255.0) < 1e-6);
+		CHECK(dabs(c.border[0] - 0x44 / 255.0) < 1e-6 && c.border[3] < 1.0);
+
+		f = fopen(cfg, "w");
+		fprintf(f, "theme_file = %s\nhighlight = #ff0000\n", theme);
+		fclose(f);
+		config_load(&c);
+		CHECK(dabs(c.highlight[0] - 1.0) < 1e-6 && dabs(c.highlight[1]) < 1e-6);
+		CHECK(dabs(c.border[0] - 0x44 / 255.0) < 1e-6);
+
+		/* an explicit value stays explicit even if a later line for it is invalid */
+		f = fopen(cfg, "w");
+		fprintf(f, "theme_file = %s\nhighlight = #00ff00\nhighlight = bogus\nborder = #0000ff\n", theme);
+		fclose(f);
+		config_load(&c);
+		CHECK(dabs(c.highlight[1] - 1.0) < 1e-6 && dabs(c.highlight[0]) < 1e-6);
+		CHECK(dabs(c.border[2] - 1.0) < 1e-6 && dabs(c.border[0]) < 1e-6);
+
+		/* "~/" in theme_file expands to $HOME */
+		setenv("HOME", dir, 1);
+		f = fopen(cfg, "w");
+		fprintf(f, "theme_file = ~/theme\n");
+		fclose(f);
+		config_load(&c);
+		CHECK(dabs(c.highlight[0] - 0x11 / 255.0) < 1e-6);
+
+		f = fopen(cfg, "w");
+		fprintf(f, "theme_file = %s/missing\n", dir);
+		fclose(f);
+		config_load(&c); /* warns on stderr, keeps the defaults */
+		CHECK(dabs(c.highlight[0] - 0.35) < 1e-6);
+
+		unlink(theme);
+		unlink(cfg);
+		rmdir(cfgdir);
 		rmdir(dir);
 	}
 

@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 enum action {
-	ACT_SELECT, ACT_CANCEL, ACT_CLOSE,
+	ACT_SELECT, ACT_CANCEL, ACT_CLOSE, ACT_MINIMIZE,
 	ACT_LEFT, ACT_RIGHT, ACT_UP, ACT_DOWN, ACT_HOME, ACT_END,
 	ACT_NEXT, ACT_PREV,
 	ACT_COUNT
@@ -13,10 +13,15 @@ enum action {
 
 #define MAX_BINDS 4
 
+enum label_mode { LABEL_TITLE, LABEL_APP_ID, LABEL_BOTH };
+
 struct config {
 	int margin, spacing, label_h;
+	enum label_mode label;
 	char font[96];
-	double bg[4], highlight[4]; /* r, g, b, a in 0..1 */
+	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
+	int highlight_set, border_set; /* set explicitly: a theme file must not override them */
+	char theme_file[256]; /* labwc themerc style file the border colors are read from */
 	uint32_t keys[ACT_COUNT][MAX_BINDS]; /* xkb keysyms, 0 = unused */
 };
 
