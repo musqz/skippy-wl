@@ -8,10 +8,9 @@
 
 /*
  * Capture all toplevels, show the overlay on every output and block until the
- * user picks a window or cancels. *selected is the picked window's identifier
- * (malloc'd) or NULL when cancelled. Returns -1 on setup failure.
+ * user picks a window (it is activated) or cancels. Returns -1 on setup failure.
  */
-int overlay_run(struct globals *g, char **selected);
+int overlay_run(struct globals *g);
 
 /* input events, called from input.c */
 void overlay_key(uint32_t keysym);

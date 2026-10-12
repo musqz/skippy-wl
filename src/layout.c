@@ -73,9 +73,9 @@ int layout_grid(const struct size *src, int n, struct size area, int spacing,
 				w = 1;
 			if (h < 1)
 				h = 1;
-			/* centred in the column, bottom-aligned so the title sits right below */
+			/* thumbnail and its title are centred in the cell as one block */
 			out[i].x = cx + (cw - w) / 2;
-			out[i].y = cy + (ch - h);
+			out[i].y = cy + (ch - h) / 2;
 			out[i].w = w;
 			out[i].h = h;
 		}

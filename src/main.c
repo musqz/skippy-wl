@@ -113,19 +113,13 @@ static int run_mode(struct globals *g, int show, int one, char **argv)
 	struct toplevel *ts[256], *t;
 	int n = 0;
 
-	toplevels_init(g->list);
+	toplevels_init(g->list, g->toplevel_mgr);
 	capture_init(g->shm, g->source_mgr, g->copy_mgr);
 	wl_display_roundtrip(g->display);
 	wl_display_roundtrip(g->display);
 
 	if (show) {
-		char *id;
-		int rc = overlay_run(g, &id);
-
-		if (id)
-			printf("%s\n", id);
-		free(id);
-		return rc < 0 ? 1 : 0;
+		return overlay_run(g) < 0 ? 1 : 0;
 	}
 	if (one) {
 		t = toplevels_find(argv[2]);
@@ -166,8 +160,8 @@ int main(int argc, char **argv)
 	if (!g.shm || !g.list || !g.source_mgr || !g.copy_mgr) {
 		fprintf(stderr, "compositor lacks ext-foreign-toplevel-list, ext-image-capture-source or ext-image-copy-capture\n");
 		rc = 1;
-	} else if (show && (!g.compositor || !g.layer_shell || !g.seat_name || !g.outputs)) {
-		fprintf(stderr, "compositor lacks wlr-layer-shell, a seat (v5+) or an output\n");
+	} else if (show && (!g.compositor || !g.layer_shell || !g.seat_name || !g.outputs || !g.toplevel_mgr)) {
+		fprintf(stderr, "compositor lacks wlr-layer-shell, wlr-foreign-toplevel-management, a seat (v5+) or an output\n");
 		rc = 1;
 	} else {
 		rc = run_mode(&g, show, one, argv);

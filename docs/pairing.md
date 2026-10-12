@@ -11,11 +11,17 @@ ext handles give thumbnails (`ext_image_capture_source`), wlr handles give activ
 - Order held after: closing a middle window then opening a new one (distinct titles), minimize, unminimize. For identical-title windows only the live event adjacency is evidence; the side-by-side table cannot tell them apart.
 - `--act N` moves `act` to `wlr#N` (and clears it on the previously active one); `--min N` / `--unmin N` set `min` on `wlr#N`.
 
+## Verified end to end (Phase 4)
+
+- 4 windows with identical titles and different content: selecting each tile focuses the window with matching content.
+- Activating a minimized window unminimizes and focuses it.
+- Activating a window on another workspace switches to that workspace (labwc `desktop_focus_view()`), so `ext-workspace` is not used.
+- With two outputs, each overlay lists only the windows the wlr handle reports on that output (`output_enter`).
+
 ## Not tested
 
-- Windows on another workspace (nested session has one).
-- Capture of occluded, minimized and other-workspace windows (Phase 2, `capture.c`).
-- Multiple outputs.
+- Capture of other-workspace windows on a real GPU renderer.
+- Compositors other than labwc.
 
 ## Decision
 

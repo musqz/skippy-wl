@@ -20,6 +20,10 @@ static void r_global(void *d, struct wl_registry *r, uint32_t name, const char *
 		g->layer_shell = wl_registry_bind(r, name, &zwlr_layer_shell_v1_interface, 1);
 	else if (!strcmp(iface, ext_foreign_toplevel_list_v1_interface.name))
 		g->list = wl_registry_bind(r, name, &ext_foreign_toplevel_list_v1_interface, 1);
+	else if (!strcmp(iface, zwlr_foreign_toplevel_manager_v1_interface.name)) {
+		g->mgr_name = name;
+		g->mgr_version = v < 3 ? v : 3;
+	}
 	else if (!strcmp(iface, ext_foreign_toplevel_image_capture_source_manager_v1_interface.name))
 		g->source_mgr = wl_registry_bind(r, name,
 			&ext_foreign_toplevel_image_capture_source_manager_v1_interface, 1);
@@ -52,6 +56,10 @@ int globals_init(struct globals *g)
 	g->registry = wl_display_get_registry(g->display);
 	wl_registry_add_listener(g->registry, &reg_l, g);
 	wl_display_roundtrip(g->display);
+	/* after the outputs are bound, or the initial output_enter events are not sent */
+	if (g->mgr_name)
+		g->toplevel_mgr = wl_registry_bind(g->registry, g->mgr_name,
+			&zwlr_foreign_toplevel_manager_v1_interface, g->mgr_version);
 	return 0;
 }
 

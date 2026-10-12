@@ -6,5 +6,6 @@
 
 void input_init(struct globals *g);
 void input_finish(void);
+struct wl_seat *input_seat(void);
 
 #endif
