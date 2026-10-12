@@ -41,7 +41,7 @@ protocols_dep = declare_dependency(
   sources: proto_hdrs,
   dependencies: wl_client)
 
-executable('skippy-wl', 'src/main.c',
+executable('skippy-wl', 'src/main.c', 'src/capture.c', 'src/toplevels.c',
   dependencies: [protocols_dep, cairo, xkbcommon],
   install: false)
 
