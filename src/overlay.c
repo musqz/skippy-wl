@@ -11,6 +11,7 @@
 #include "capture.h"
 #include "config.h"
 #include "filter.h"
+#include "icons.h"
 #include "input.h"
 #include "layout.h"
 #include "overlay.h"
@@ -381,6 +382,12 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int bi
 	g_object_unref(pl);
 }
 
+static void paint_icon(cairo_t *cr, cairo_surface_t *ic, int x, int y, double alpha)
+{
+	cairo_set_source_surface(cr, ic, x, y);
+	cairo_paint_with_alpha(cr, alpha);
+}
+
 static void render(struct surf *s, cairo_t *cr)
 {
 	if (st.hidden) {
@@ -406,11 +413,30 @@ static void render(struct surf *s, cairo_t *cr)
 		if (s->scaled[p]) {
 			cairo_set_source_surface(cr, s->scaled[p], r->x, r->y);
 			cairo_paint_with_alpha(cr, dim);
+			/* corner icon, unless the tile is too small to carry one */
+			if (cfg.icon && r->w >= 3 * cfg.icon_size && r->h >= 3 * cfg.icon_size) {
+				cairo_surface_t *ic = icon_get(tl->app_id, cfg.icon_theme, cfg.icon_size);
+
+				if (ic)
+					paint_icon(cr, ic, r->x + r->w - cfg.icon_size - 6,
+						r->y + r->h - cfg.icon_size - 6, dim);
+			}
 		} else {
+			int isz = (r->w < r->h ? r->w : r->h) / 2;
+			cairo_surface_t *ic = NULL;
+
+			/* a few fixed sizes, so a relayout reuses the cached icons */
+			isz = isz >= 256 ? 256 : isz >= 128 ? 128 : isz >= 96 ? 96 : isz >= 64 ? 64 :
+				isz >= 48 ? 48 : isz >= 32 ? 32 : 0;
 			cairo_set_source_rgba(cr, 0.16, 0.16, 0.18, dim);
 			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
 			cairo_fill(cr);
-			draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8 * dim);
+			if (cfg.icon && isz)
+				ic = icon_get(tl->app_id, cfg.icon_theme, isz);
+			if (ic)
+				paint_icon(cr, ic, r->x + (r->w - isz) / 2, r->y + (r->h - isz) / 2, dim);
+			else
+				draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8 * dim);
 		}
 
 		if (selected) {
@@ -899,6 +925,7 @@ out:
 	toplevels_set_closed_cb(NULL);
 	toplevels_set_changed_cb(NULL);
 	tiles_finish();
+	icons_clear();
 	wl_display_roundtrip(g->display);
 	pango_font_description_free(font);
 	pango_font_description_free(font_big);
