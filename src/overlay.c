@@ -976,6 +976,32 @@ out:
 	return rc;
 }
 
+int overlay_switch(struct globals *g, const struct filter *filter)
+{
+	int rc = 0, skip;
+
+	memset(&st, 0, sizeof(st));
+	st.g = g;
+	st.filter = filter;
+	/* before the window list: its roundtrips may deliver a closed event that frees a toplevel */
+	input_init(g);
+	if (tiles_build() < 0) {
+		rc = -1;
+		goto out;
+	}
+	/* the first window is the current one, unless nothing has focus */
+	skip = st.n && (toplevel_status(st.tiles[0].t) & STATUS_ACTIVATED) ? 1 : 0;
+	if (st.n <= skip)
+		goto out;
+	if (toplevel_activate(st.tiles[skip].t, input_seat()) < 0)
+		fprintf(stderr, "skippy-wl: cannot activate this window (no wlr handle paired)\n");
+	wl_display_roundtrip(g->display);
+out:
+	input_finish();
+	tiles_finish();
+	return rc;
+}
+
 void overlay_cancel(void)
 {
 	st.quit = 1;

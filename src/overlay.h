@@ -17,6 +17,12 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir);
 /* --next/--prev (dir 1/-1) again while the overlay is up: move the selection one step */
 void overlay_cycle(int dir);
 
+/*
+ * Focus the previous window (second in the usage order, or the first if no window has focus)
+ * among those matching filter. Draws nothing. Returns -1 on setup failure.
+ */
+int overlay_switch(struct globals *g, const struct filter *filter);
+
 /* close the overlay without picking; no-op when it is not shown */
 void overlay_cancel(void);
 int overlay_active(void);

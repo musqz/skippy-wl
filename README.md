@@ -18,9 +18,9 @@ Start the daemon, then toggle the overlay:
     skippy-wl --daemon &
     skippy-wl --toggle
 
-Other commands: `--show`, `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
+Other commands: `--show`, `--switch` (focus the previous window, no overlay), `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
 
-Filter the windows with `--app-id`, `--title` and `--status` (`minimized`, `maximized`, `fullscreen`, `activated`). Lists are comma separated globs; a leading `!` excludes, `\,` is a literal comma:
+Filter the windows (also for `--switch`) with `--app-id`, `--title` and `--status` (`minimized`, `maximized`, `fullscreen`, `activated`). Lists are comma separated globs; a leading `!` excludes, `\,` is a literal comma:
 
     skippy-wl --toggle --app-id kitty,foot
     skippy-wl --toggle --title '*vim*'
