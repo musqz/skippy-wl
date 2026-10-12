@@ -112,30 +112,48 @@ static int wanted(const struct toplevel *t)
 
 static int tiles_init(struct globals *g)
 {
-	struct toplevel *t;
+	struct toplevel *t, **order;
 	int i = 0, n = 0;
 
 	for (t = toplevels_first(); t; t = t->next)
 		n += wanted(t);
 	if (!n)
 		return 0;
-	st.tiles = calloc((size_t)n, sizeof(*st.tiles));
-	if (!st.tiles)
+	order = malloc((size_t)n * sizeof(*order));
+	if (!order)
 		return -1;
+	for (t = toplevels_first(); t; t = t->next)
+		if (wanted(t))
+			order[i++] = t;
+	/* most recently active first; stable, so never-activated windows keep list order */
+	for (i = 1; i < n; i++) {
+		struct toplevel *k = order[i];
+		int j = i;
+
+		for (; j > 0 && toplevel_mru(order[j - 1]) < toplevel_mru(k); j--)
+			order[j] = order[j - 1];
+		order[j] = k;
+	}
+	st.tiles = calloc((size_t)n, sizeof(*st.tiles));
+	if (!st.tiles) {
+		free(order);
+		return -1;
+	}
 	st.n = n;
-	for (t = toplevels_first(); t; t = t->next) {
+	for (i = 0; i < n; i++) {
 		struct tile *tl = &st.tiles[i];
 
-		if (!wanted(t))
-			continue;
-		i++;
+		t = order[i];
 		tl->t = t;
 		tl->app_id = dup_or_empty(t->app_id);
 		tl->title = dup_or_empty(t->title);
 		tl->cap = capture_start(t->ext);
-		if (!tl->app_id || !tl->title || !tl->cap)
+		if (!tl->app_id || !tl->title || !tl->cap) {
+			free(order);
 			return -1;
+		}
 	}
+	free(order);
 	/* a window that never answers just gets a placeholder tile */
 	display_wait(g->display, caps_done, NULL, CAPTURE_WAIT_MS);
 	for (i = 0; i < st.n; i++) {

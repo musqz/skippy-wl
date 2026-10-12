@@ -21,6 +21,7 @@ struct wtop {
 	int n_outs, done, checked, bad;
 	unsigned status; /* STATUS_* bits from the wlr state event */
 	unsigned shown_status; /* status at the last changed_cb */
+	unsigned long mru; /* activation stamp, 0 = never activated */
 	struct toplevel *t;
 };
 
@@ -30,6 +31,7 @@ static void (*closed_cb)(struct toplevel *);
 static void (*changed_cb)(void);
 /* set when a pair disagrees: order pairing can no longer be trusted, so no window gets actions */
 static int pairing_broken;
+static unsigned long mru_clock;
 
 static void set(char **dst, const char *s)
 {
@@ -200,6 +202,7 @@ static void w_state(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, struct w
 {
 	struct wtop *w = d;
 	uint32_t *s;
+	unsigned old = w->status;
 
 	(void)h;
 	w->status = 0;
@@ -219,6 +222,8 @@ static void w_state(void *d, struct zwlr_foreign_toplevel_handle_v1 *h, struct w
 			break;
 		}
 	}
+	if ((w->status & STATUS_ACTIVATED) && !(old & STATUS_ACTIVATED))
+		w->mru = ++mru_clock;
 }
 
 static void w_done(void *d, struct zwlr_foreign_toplevel_handle_v1 *h)
@@ -365,4 +370,9 @@ int toplevel_set_minimized(struct toplevel *t, int minimized)
 	else
 		zwlr_foreign_toplevel_handle_v1_unset_minimized(t->w->handle);
 	return 0;
+}
+
+unsigned long toplevel_mru(const struct toplevel *t)
+{
+	return t->w ? t->w->mru : 0;
 }
