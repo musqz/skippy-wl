@@ -175,9 +175,11 @@ int main(int argc, char **argv)
 			const char *key, *val;
 			int n;
 
-			if (!strcmp(argv[1], "--switch") && (!strcmp(argv[i], "--next") || !strcmp(argv[i], "--prev")))
-				return usage(argv[0]);
 			if (!strcmp(argv[i], "--next") || !strcmp(argv[i], "--prev")) {
+				if (!strcmp(argv[1], "--switch")) {
+					fprintf(stderr, "skippy-wl: --switch does not take %s\n", argv[i]);
+					return 1;
+				}
 				dir = argv[i][2] == 'n' ? 1 : -1;
 				n = snprintf(cmd + len, sizeof(cmd) - len, "\tdir=%s", argv[i] + 2);
 				if (n < 0 || (size_t)n >= sizeof(cmd) - len)
