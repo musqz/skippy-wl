@@ -1,0 +1,124 @@
+.TH SKIPPY-WL 1 "" "skippy-wl" "User Commands"
+.SH NAME
+skippy-wl \- window overview for labwc
+.SH SYNOPSIS
+.B skippy-wl \-\-daemon
+.br
+.B skippy-wl
+.RB { \-\-toggle | \-\-show | \-\-quit }
+.br
+.B skippy-wl \-\-version
+.SH DESCRIPTION
+Shows a fullscreen overlay with a thumbnail of every window on every output.
+Pick one to focus it. Windows on other workspaces and minimized windows are listed too.
+.PP
+Run one daemon, then bind
+.B skippy-wl \-\-toggle
+to a key in the compositor. Without a daemon,
+.B \-\-show
+and
+.B \-\-toggle
+show the overlay once in their own process.
+.PP
+Needs these Wayland protocols: ext-foreign-toplevel-list, ext-image-capture-source,
+ext-image-copy-capture, wlr-foreign-toplevel-management and wlr-layer-shell.
+.SH COMMANDS
+.TP
+.B \-\-daemon
+Track windows and listen on the control socket until
+.BR \-\-quit ,
+SIGINT or SIGTERM.
+.TP
+.B \-\-toggle
+Open the overlay, or close it if it is open.
+.TP
+.B \-\-show
+Open the overlay. Does nothing if it is open.
+.TP
+.B \-\-quit
+Stop the daemon.
+.TP
+.B \-\-version
+Print the version.
+.SH OVERLAY KEYS
+Defaults. Change them with
+.B bind.*
+in the config file.
+.TP
+.B Left Right Up Down
+Move the selection.
+.TP
+.B Home End
+First or last window.
+.TP
+.B Tab, Shift+Tab
+Next or previous window.
+.TP
+.B Return
+Focus the selected window.
+.TP
+.B Delete
+Close the selected window.
+.TP
+.B Escape
+Close the overlay.
+.PP
+Mouse: hover selects, left click focuses, middle click closes the window, left click on empty space closes the overlay.
+.SH CONFIGURATION
+.I ~/.config/skippy-wl/config
+(or
+.IR $XDG_CONFIG_HOME/skippy-wl/config ).
+One
+.I key = value
+per line. A line that starts with
+.B #
+is a comment. The file is read each time the overlay opens. Invalid lines are reported on stderr and skipped.
+.TP
+.B margin
+Pixels between the screen edge and the grid. Default 48.
+.TP
+.B spacing
+Pixels between tiles. Default 28.
+.TP
+.B label_height
+Pixels reserved under each tile for the title. Default 28.
+.TP
+.B font
+Pango font description for titles. Default
+.IR "Sans 11" .
+.TP
+.B background
+Overlay color as #RRGGBB or #RRGGBBAA. Default #000000b8.
+.TP
+.B highlight
+Selection color as #RRGGBB or #RRGGBBAA. Default #5999ff.
+.TP
+.B bind.select bind.cancel bind.close bind.left bind.right bind.up bind.down bind.home bind.end bind.next bind.prev
+Up to four xkb keysym names, comma separated. A line replaces the default keys of that action. A key moves from its old action to the new one.
+.SH FILES
+.TP
+.I $XDG_RUNTIME_DIR/skippy-wl.sock
+Control socket of the daemon.
+.TP
+.I PREFIX/share/skippy-wl/skippy-wl.conf
+Config template.
+.SH LABWC
+In
+.IR ~/.config/labwc/autostart :
+.PP
+.nf
+skippy-wl \-\-daemon &
+.fi
+.PP
+In
+.IR ~/.config/labwc/rc.xml :
+.PP
+.nf
+<keybind key="A\-Tab">
+  <action name="Execute" command="skippy\-wl \-\-toggle"/>
+</keybind>
+.fi
+.SH EXIT STATUS
+0 on success, 1 on any error.
+.SH SEE ALSO
+.BR labwc (1)
