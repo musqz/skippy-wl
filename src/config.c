@@ -122,6 +122,15 @@ int config_set(struct config *c, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
+	if (!strcmp(key, "monitors")) {
+		if (!strcmp(value, "each"))
+			c->monitors = MON_EACH;
+		else if (!strcmp(value, "pointer"))
+			c->monitors = MON_POINTER;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(key, "font")) {
 		if (!*value || strlen(value) >= sizeof(c->font))
 			return -1;

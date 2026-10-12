@@ -46,7 +46,7 @@ Copy the template and edit it:
 
 To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc`.
 
-Settings: `margin`, `spacing`, `label_height`, `label` (`title`, `app_id`, `both`), `font`, `background`, `highlight`, `border`, `theme_file`, `bind.*`. Changes apply the next time the overlay opens.
+Settings: `margin`, `spacing`, `label_height`, `label` (`title`, `app_id`, `both`), `monitors` (`each`, `pointer`), `font`, `background`, `highlight`, `border`, `theme_file`, `bind.*`. Changes apply the next time the overlay opens.
 
 ## Development
     meson setup build && ninja -C build && meson test -C build

@@ -65,6 +65,7 @@ static struct {
 	struct surf *surfs;
 	int sel;
 	struct surf *ptr_surf;
+	struct surf *target; /* monitors = pointer: the output that shows every window */
 	int quit;
 	struct toplevel *pick; /* window to activate after teardown */
 	const struct filter *filter;
@@ -72,6 +73,7 @@ static struct {
 
 static void draw(struct surf *s);
 static void relayout(struct surf *s);
+static void set_target(struct surf *s);
 static void tile_free(struct tile *tl);
 static void layout_free(struct surf *s);
 
@@ -224,7 +226,7 @@ static void relayout(struct surf *s)
 	if (!s->vis)
 		return;
 	for (int i = 0; i < st.n; i++)
-		if (toplevel_on_output(st.tiles[i].t, s->output))
+		if (cfg.monitors == MON_POINTER ? s == st.target : toplevel_on_output(st.tiles[i].t, s->output))
 			s->vis[s->nvis++] = i;
 	if (!s->nvis) {
 		layout_free(s);
@@ -482,6 +484,9 @@ static void ls_configure(void *d, struct zwlr_layer_surface_v1 *ls, uint32_t ser
 		}
 		relayout(s);
 	}
+	/* without a pointer no enter event will pick the output */
+	if (!input_has_pointer())
+		set_target(s);
 	if (s->frame_cb)
 		s->dirty = 1;
 	else
@@ -532,6 +537,18 @@ static void surf_destroy(struct surf *s)
 }
 
 /* ---- input ---- */
+
+/* monitors = pointer: show every window on s, the output the pointer first entered */
+static void set_target(struct surf *s)
+{
+	if (cfg.monitors != MON_POINTER || st.target || !s)
+		return;
+	st.target = s;
+	for (s = st.surfs; s; s = s->next)
+		if (s->w)
+			relayout(s);
+	redraw_all();
+}
 
 /* the output the user is working on: the pointer's, else the first with windows */
 static struct surf *active_surf(void)
@@ -643,6 +660,12 @@ void overlay_key(uint32_t sym)
 
 	if (st.quit)
 		return;
+	if (cfg.monitors == MON_POINTER && !st.target) {
+		/* nothing is shown yet: only cancel is safe */
+		if (config_action(&cfg, sym) == ACT_CANCEL)
+			st.quit = 1;
+		return;
+	}
 	switch (config_action(&cfg, sym)) {
 	case ACT_CANCEL:
 		st.quit = 1;
@@ -700,6 +723,7 @@ void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
 		for (s = st.surfs; s; s = s->next)
 			if (s->surface == surface)
 				st.ptr_surf = s;
+		set_target(st.ptr_surf);
 	}
 	ptr_x = x;
 	ptr_y = y;
@@ -774,6 +798,7 @@ out:
 		surf_destroy(s);
 	}
 	st.ptr_surf = NULL;
+	st.target = NULL;
 	if (st.pick) {
 		/* focus the pick only after the overlay is gone, or the compositor hands focus back */
 		wl_display_roundtrip(g->display);

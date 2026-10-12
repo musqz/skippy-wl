@@ -14,10 +14,12 @@ enum action {
 #define MAX_BINDS 4
 
 enum label_mode { LABEL_TITLE, LABEL_APP_ID, LABEL_BOTH };
+enum monitor_mode { MON_EACH, MON_POINTER };
 
 struct config {
 	int margin, spacing, label_h;
 	enum label_mode label;
+	enum monitor_mode monitors;
 	char font[96];
 	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
 	int highlight_set, border_set; /* set explicitly: a theme file must not override them */
