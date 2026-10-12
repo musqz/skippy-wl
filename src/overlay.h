@@ -14,7 +14,7 @@
  */
 int overlay_run(struct globals *g, const struct filter *filter, int dir);
 
-/* switch mode while the overlay is up: move the selection by dir (1 or -1) */
+/* --next/--prev (dir 1/-1) again while the overlay is up: the same command twice in a row steps the other way */
 void overlay_cycle(int dir);
 
 /* close the overlay without picking; no-op when it is not shown */

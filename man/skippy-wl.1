@@ -54,7 +54,7 @@ Print the version.
 .B \-\-next
 Open on the previous window (second in the order). Hold the modifier of the key binding, press
 .B Tab
-(or run the command again) to move on, release the modifier to focus the selected window.
+to step forward. If the key binding is the command itself, each run steps in the opposite direction of the run before: the second run steps back, the third forward, and so on, so it flips between two windows. Release the modifier to focus the selected window.
 .TP
 .B \-\-prev
 Open on the last window; the other direction of
