@@ -71,7 +71,9 @@ static struct {
 	struct toplevel *pick; /* window to activate after teardown */
 	int dir; /* 1/-1: opened by --next/--prev */
 	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
-	int mods_seen, ptr_seen;
+	int mods_seen, ptr_seen, pivot_done;
+	uint32_t cur_mods; /* modifiers down now */
+	double t_last; /* ms of the last key press or step once the overlay is drawn */
 	double anim_t0; /* ms when the tiles first showed; 0 = not yet */
 	uint32_t held; /* modifiers down when the keyboard got focus */
 	const struct filter *filter;
@@ -765,6 +767,7 @@ void overlay_key(uint32_t sym)
 
 	if (st.quit)
 		return;
+	st.t_last = now_ms();
 	if (cfg.monitors == MON_POINTER && !st.target && !st.hidden) {
 		/* nothing is shown yet: only cancel is safe */
 		if (config_action(&cfg, sym) == ACT_CANCEL)
@@ -821,20 +824,34 @@ void overlay_modifiers(uint32_t depressed)
 {
 	int first = !st.mods_seen;
 
-	if (!st.dir || !cfg.pivot || st.quit)
+	st.cur_mods = depressed;
+	if (!st.dir || !cfg.pivot || st.pivot_done || st.quit)
 		return;
 	st.mods_seen = 1;
 	if (first)
 		st.held = depressed;
+	if (st.held && (depressed & st.held))
+		return;
+	/* a pause with the overlay up: the user is looking around, so it stays open */
+	if (st.held && !st.hidden && cfg.switch_hold && now_ms() - st.t_last > cfg.switch_hold) {
+		st.pivot_done = 1;
+		return;
+	}
 	/* nothing held at open: the key was already released */
-	if (!st.held || !(depressed & st.held))
-		choose(st.sel);
+	choose(st.sel);
 }
 
 void overlay_cycle(int dir)
 {
-	if (!st.quit)
-		cycle(dir);
+	if (st.quit)
+		return;
+	/* the keybind again after the overlay stayed open: this release picks */
+	if (st.pivot_done && st.cur_mods) {
+		st.pivot_done = 0;
+		st.held = st.cur_mods;
+	}
+	st.t_last = now_ms();
+	cycle(dir);
 }
 
 static double ptr_x, ptr_y;
@@ -944,6 +961,7 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir)
 			relayout_all();
 		}
 	}
+	st.t_last = now_ms();
 	if (display_wait(g->display, quit_requested, NULL, -1) < 0)
 		rc = -1;
 out:

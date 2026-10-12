@@ -25,6 +25,7 @@ struct config {
 	int anim, anim_ms; /* fade and grow when the overlay opens */
 	int pivot; /* release of the modifiers held at open picks the selection */
 	int switch_wait; /* ms before a --next/--prev overlay is drawn; 0 = at once */
+	int switch_hold; /* ms of pause after which releasing the modifiers leaves the overlay open; 0 = always pick */
 	char font[96];
 	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
 	int highlight_set, border_set; /* set explicitly: a theme file must not override them */

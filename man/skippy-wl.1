@@ -78,7 +78,8 @@ to step forward, or run
 .B \-\-next
 again. Run
 .B \-\-prev
-to step back. Release the modifier to focus the selected window.
+to step back. Release the modifier to focus the selected window, unless you paused for longer than
+.BR switch.hold .
 .TP
 .B \-\-prev
 Open on the last window. Run it again to step back.
@@ -200,6 +201,11 @@ leaves the overlay open until Enter, a click or Escape. Default
 Milliseconds to wait before drawing the overlay in switch mode (needs
 .BR switch.pivot ).
 0 draws at once. Default 100.
+.TP
+.B switch.hold
+Milliseconds. In switch mode, releasing the modifiers more than this long after the overlay was drawn or the last key press leaves the overlay open for the mouse and keys. Running the command again makes the next release pick. 0 always picks on release. Needs
+.BR switch.pivot .
+Default 1000.
 .TP
 .B icons.enabled
 .B true

@@ -34,6 +34,12 @@ int main(void)
 	CHECK(c.monitors == MON_POINTER);
 	CHECK(config_set(&c, "monitors.mode", "all") < 0);
 	CHECK(c.pivot == 1 && c.switch_wait == 100);
+	CHECK(c.switch_hold == 1000);
+	CHECK(config_set(&c, "switch.hold", "500") == 0 && c.switch_hold == 500);
+	CHECK(config_set(&c, "switch.hold", "60000") == 0 && c.switch_hold == 60000);
+	CHECK(config_set(&c, "switch.hold", "0") == 0 && c.switch_hold == 0);
+	CHECK(config_set(&c, "switch.hold", "60001") < 0 && config_set(&c, "switch.hold", "-1") < 0);
+	CHECK(config_set(&c, "switch.hold", "abc") < 0 && c.switch_hold == 0);
 	CHECK(config_set(&c, "switch.pivot", "false") == 0 && c.pivot == 0);
 	CHECK(config_set(&c, "switch.pivot", "yes") < 0);
 	CHECK(config_set(&c, "switch.wait", "0") == 0 && c.switch_wait == 0);
