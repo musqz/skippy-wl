@@ -51,6 +51,11 @@ static void p_axis_stop(void *d, struct wl_pointer *p, uint32_t t, uint32_t a)
 static void p_axis_discrete(void *d, struct wl_pointer *p, uint32_t a, int32_t v)
 { (void)d; (void)p; (void)a; (void)v; }
 
+int input_has_pointer(void)
+{
+	return pointer != NULL;
+}
+
 static const struct wl_pointer_listener pointer_l = {
 	.enter = p_enter,
 	.leave = p_leave,
