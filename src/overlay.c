@@ -68,12 +68,17 @@ static struct {
 	struct surf *target; /* monitors = pointer: the output that shows every window */
 	int quit;
 	struct toplevel *pick; /* window to activate after teardown */
+	int dir; /* 1/-1: opened by --next/--prev */
+	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
+	int mods_seen, ptr_seen;
+	uint32_t held; /* modifiers down when the keyboard got focus */
 	const struct filter *filter;
 } st;
 
 static void draw(struct surf *s);
 static void relayout(struct surf *s);
 static void set_target(struct surf *s);
+static void relayout_all(void);
 static void tile_free(struct tile *tl);
 static void layout_free(struct surf *s);
 
@@ -110,7 +115,7 @@ static int wanted(const struct toplevel *t)
 	return filter_match(st.filter, t->app_id, t->title, toplevel_status(t));
 }
 
-static int tiles_init(struct globals *g)
+static int tiles_build(void)
 {
 	struct toplevel *t, **order;
 	int i = 0, n = 0;
@@ -147,13 +152,24 @@ static int tiles_init(struct globals *g)
 		tl->t = t;
 		tl->app_id = dup_or_empty(t->app_id);
 		tl->title = dup_or_empty(t->title);
-		tl->cap = capture_start(t->ext);
-		if (!tl->app_id || !tl->title || !tl->cap) {
+		if (!tl->app_id || !tl->title) {
 			free(order);
 			return -1;
 		}
 	}
 	free(order);
+	return 0;
+}
+
+static int tiles_capture(struct globals *g)
+{
+	int i;
+
+	for (i = 0; i < st.n; i++) {
+		st.tiles[i].cap = capture_start(st.tiles[i].t->ext);
+		if (!st.tiles[i].cap)
+			return -1;
+	}
 	/* a window that never answers just gets a placeholder tile */
 	display_wait(g->display, caps_done, NULL, CAPTURE_WAIT_MS);
 	for (i = 0; i < st.n; i++) {
@@ -210,13 +226,18 @@ static void on_toplevel_closed(struct toplevel *t)
 		st.sel--;
 	else if (st.sel >= st.n)
 		st.sel = st.n - 1;
-	for (s = st.surfs; s; s = s->next)
+	relayout_all();
+}
+
+/* ---- per-output layout ---- */
+
+static void relayout_all(void)
+{
+	for (struct surf *s = st.surfs; s; s = s->next)
 		if (s->w)
 			relayout(s);
 	redraw_all();
 }
-
-/* ---- per-output layout ---- */
 
 static void layout_free(struct surf *s)
 {
@@ -238,7 +259,7 @@ static void relayout(struct surf *s)
 	struct size *src;
 
 	layout_free(s);
-	if (!st.n)
+	if (!st.n || st.hidden)
 		return;
 	s->vis = calloc((size_t)st.n, sizeof(*s->vis));
 	if (!s->vis)
@@ -362,6 +383,11 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int bi
 
 static void render(struct surf *s, cairo_t *cr)
 {
+	if (st.hidden) {
+		cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+		cairo_paint(cr);
+		return;
+	}
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
 	cairo_set_source_rgba(cr, cfg.bg[0], cfg.bg[1], cfg.bg[2], cfg.bg[3]);
 	cairo_paint(cr);
@@ -562,10 +588,7 @@ static void set_target(struct surf *s)
 	if (cfg.monitors != MON_POINTER || st.target || !s)
 		return;
 	st.target = s;
-	for (s = st.surfs; s; s = s->next)
-		if (s->w)
-			relayout(s);
-	redraw_all();
+	relayout_all();
 }
 
 /* the output the user is working on: the pointer's, else the first with windows */
@@ -663,28 +686,28 @@ static void move_vert(int dir)
 
 static void cycle(int dir)
 {
-	struct surf *s = active_surf();
-	int pos;
-
-	if (!s)
-		return;
-	pos = pos_of(s, st.sel);
-	select_pos(s, pos < 0 ? 0 : (pos + dir + s->nvis) % s->nvis);
+	if (st.n)
+		set_sel((st.sel + dir + st.n) % st.n);
 }
 
 void overlay_key(uint32_t sym)
 {
 	struct surf *s;
+	int act;
 
 	if (st.quit)
 		return;
-	if (cfg.monitors == MON_POINTER && !st.target) {
+	if (cfg.monitors == MON_POINTER && !st.target && !st.hidden) {
 		/* nothing is shown yet: only cancel is safe */
 		if (config_action(&cfg, sym) == ACT_CANCEL)
 			st.quit = 1;
 		return;
 	}
-	switch (config_action(&cfg, sym)) {
+	act = config_action(&cfg, sym);
+	/* nothing is drawn yet: close, minimize and the like would act on a window the user cannot see */
+	if (st.hidden && act != ACT_CANCEL && act != ACT_SELECT && act != ACT_NEXT && act != ACT_PREV)
+		return;
+	switch (act) {
 	case ACT_CANCEL:
 		st.quit = 1;
 		break;
@@ -726,6 +749,25 @@ void overlay_key(uint32_t sym)
 	}
 }
 
+void overlay_modifiers(uint32_t depressed)
+{
+	int first = !st.mods_seen;
+
+	if (!st.dir || !cfg.pivot || st.quit)
+		return;
+	st.mods_seen = 1;
+	if (first)
+		st.held = depressed;
+	/* nothing held at open: the key was already released */
+	if (!st.held || !(depressed & st.held))
+		choose(st.sel);
+}
+
+void overlay_cycle(int dir)
+{
+	cycle(dir);
+}
+
 static double ptr_x, ptr_y;
 
 void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
@@ -742,6 +784,13 @@ void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
 			if (s->surface == surface)
 				st.ptr_surf = s;
 		set_target(st.ptr_surf);
+	}
+	/* the parked cursor's enter event must not replace the --next/--prev selection */
+	if (st.dir && !st.ptr_seen) {
+		st.ptr_seen = 1;
+		ptr_x = x;
+		ptr_y = y;
+		return;
 	}
 	ptr_x = x;
 	ptr_y = y;
@@ -782,7 +831,7 @@ static int quit_requested(void *arg)
 	return st.quit;
 }
 
-int overlay_run(struct globals *g, const struct filter *filter)
+int overlay_run(struct globals *g, const struct filter *filter, int dir)
 {
 	struct output *o;
 	int rc = 0, input_up = 0;
@@ -790,22 +839,42 @@ int overlay_run(struct globals *g, const struct filter *filter)
 	memset(&st, 0, sizeof(st));
 	st.g = g;
 	st.filter = filter;
+	st.dir = dir;
 	config_load(&cfg);
 	fonts_init();
 	active = 1;
 	toplevels_set_closed_cb(on_toplevel_closed);
 	toplevels_set_changed_cb(redraw_all);
-	if (tiles_init(g) < 0) {
+	if (tiles_build() < 0) {
 		rc = -1;
 		goto out;
 	}
 	if (!st.n)
 		goto out;
-	st.sel = 0;
+	st.sel = dir > 0 && st.n > 1 ? 1 : dir < 0 ? st.n - 1 : 0;
+	/* a quick tap then picks the window without the capture delay or any drawing */
+	st.hidden = dir && cfg.pivot && cfg.switch_wait > 0;
+	if (!st.hidden && tiles_capture(g) < 0) {
+		rc = -1;
+		goto out;
+	}
 	input_init(g);
 	input_up = 1;
 	for (o = g->outputs; o; o = o->next)
 		surf_create(o);
+	if (st.hidden) {
+		/* returns -1 on timeout: the modifiers are still held, show the overlay */
+		display_wait(g->display, quit_requested, NULL, cfg.switch_wait);
+		if (!st.quit && !display_interrupted()) {
+			/* stays hidden until the sizes are known */
+			if (tiles_capture(g) < 0) {
+				rc = -1;
+				goto out;
+			}
+			st.hidden = 0;
+			relayout_all();
+		}
+	}
 	if (display_wait(g->display, quit_requested, NULL, -1) < 0)
 		rc = -1;
 out:

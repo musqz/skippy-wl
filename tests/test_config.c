@@ -33,6 +33,11 @@ int main(void)
 	CHECK(config_set(&c, "monitors", "pointer") == 0);
 	CHECK(c.monitors == MON_POINTER);
 	CHECK(config_set(&c, "monitors", "all") < 0);
+	CHECK(c.pivot == 1 && c.switch_wait == 100);
+	CHECK(config_set(&c, "pivot", "false") == 0 && c.pivot == 0);
+	CHECK(config_set(&c, "pivot", "yes") < 0);
+	CHECK(config_set(&c, "switch_wait", "0") == 0 && c.switch_wait == 0);
+	CHECK(config_set(&c, "switch_wait", "-1") < 0);
 	CHECK(config_action(&c, XKB_KEY_Escape) == ACT_CANCEL);
 	CHECK(config_action(&c, XKB_KEY_KP_Enter) == ACT_SELECT);
 	CHECK(config_action(&c, XKB_KEY_x) == -1);
