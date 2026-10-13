@@ -9,6 +9,7 @@
 #include "filter.h"
 #include "ipc.h"
 #include "globals.h"
+#include "input.h"
 #include "overlay.h"
 #include "toplevels.h"
 #include "wlutil.h"
@@ -110,14 +111,15 @@ static int usage(const char *argv0)
 		"                          [--next | --prev]\n"
 		"       %s --show --multi-select [--app-id LIST] [--title LIST] [--status LIST]\n"
 		"       %s --switch [--app-id LIST] [--title LIST] [--status LIST]\n"
+		"       %s --activate <identifier>\n"
 		"       %s --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
 		"       %s --capture-all <dir>\n"
-		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
 	return 1;
 }
 
-enum mode { MODE_SHOW, MODE_DAEMON, MODE_CAPTURE, MODE_CAPTURE_ALL };
+enum mode { MODE_SHOW, MODE_DAEMON, MODE_CAPTURE, MODE_CAPTURE_ALL, MODE_ACTIVATE };
 
 static int run_mode(struct globals *g, enum mode mode, char **argv, const struct filter *filter, int dir,
 	int multi)
@@ -136,6 +138,23 @@ static int run_mode(struct globals *g, enum mode mode, char **argv, const struct
 		int rc = overlay_run(g, filter, dir, multi);
 
 		return rc < 0 ? 1 : rc;
+	}
+	if (mode == MODE_ACTIVATE) {
+		int rc = 0;
+
+		input_init(g);
+		t = toplevels_find(argv[2]);
+		if (!t) {
+			fprintf(stderr, "skippy-wl: no toplevel with identifier %s\n", argv[2]);
+			rc = 1;
+		} else if (toplevel_activate(t, input_seat()) < 0) {
+			fprintf(stderr, "skippy-wl: cannot activate this window (no wlr handle paired)\n");
+			rc = 1;
+		}
+		if (wl_display_roundtrip(g->display) < 0)
+			rc = 1;
+		input_finish();
+		return rc;
 	}
 	if (mode == MODE_CAPTURE) {
 		t = toplevels_find(argv[2]);
@@ -258,6 +277,8 @@ int main(int argc, char **argv)
 			return sent == 0 ? 0 : 1;
 		fprintf(stderr, "skippy-wl: no daemon running\n");
 		return 1;
+	} else if (argc == 3 && !strcmp(argv[1], "--activate")) {
+		mode = MODE_ACTIVATE;
 	} else if (argc == 4 && !strcmp(argv[1], "--capture")) {
 		mode = MODE_CAPTURE;
 	} else if (argc == 3 && !strcmp(argv[1], "--capture-all")) {
@@ -273,7 +294,7 @@ int main(int argc, char **argv)
 	if (!g.shm || !g.list || !g.source_mgr || !g.copy_mgr) {
 		fprintf(stderr, "compositor lacks ext-foreign-toplevel-list, ext-image-capture-source or ext-image-copy-capture\n");
 		rc = 1;
-	} else if ((mode == MODE_SHOW || mode == MODE_DAEMON) &&
+	} else if ((mode == MODE_SHOW || mode == MODE_DAEMON || mode == MODE_ACTIVATE) &&
 			(!g.compositor || !g.layer_shell || !g.seat_name || !g.outputs || !g.toplevel_mgr)) {
 		fprintf(stderr, "compositor lacks wlr-layer-shell, wlr-foreign-toplevel-management, a seat (v5+) or an output\n");
 		rc = 1;

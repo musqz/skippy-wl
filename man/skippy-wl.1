@@ -30,6 +30,9 @@ skippy-wl \- window overview for labwc
 .RB [ \-\-status
 .IR LIST ]
 .br
+.B skippy-wl \-\-activate
+.I identifier
+.br
 .B skippy-wl \-\-quit
 .br
 .B skippy-wl \-\-version
@@ -66,6 +69,11 @@ Pick several windows. A click or
 toggles the window, a toggled window is tinted. Nothing is focused. On
 .B Enter
 the identifiers of the toggled windows are printed to stdout, one per line. On cancel, or with nothing toggled, nothing is printed and the exit status is 1. Close and minimize are disabled. Runs in its own process, not in the daemon.
+.TP
+.BI \-\-activate " identifier"
+Focus the window with that toplevel identifier, such as one printed by
+.BR "\-\-show \-\-multi\-select" .
+Unminimizes the window and switches to its workspace. Exits 1 if no such window exists or it cannot be activated. Runs in its own process.
 .TP
 .B \-\-switch
 Focus the previous window at once and draw nothing: the second window in the usage order, or the first if no window has focus.
