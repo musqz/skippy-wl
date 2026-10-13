@@ -139,7 +139,7 @@ int daemon_run(struct globals *g)
 			continue;
 		}
 		want_show = 0;
-		if (overlay_run(g, &pending, pending_dir) < 0 && !display_interrupted())
+		if (overlay_run(g, &pending, pending_dir, 0) < 0 && !display_interrupted())
 			fprintf(stderr, "skippy-wl: overlay failed\n");
 	}
 	display_set_extra_fd(-1, NULL);

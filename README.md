@@ -20,6 +20,12 @@ Start the daemon, then toggle the overlay:
 
 Other commands: `--show`, `--switch` (focus the previous window, no overlay), `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
 
+Pick several windows with `skippy-wl --show --multi-select`. It prints their identifiers, one per line.
+
+Click or press Space to toggle a window, Enter to confirm, Escape to cancel (exit status 1, no output).
+
+Note: it runs without the daemon and does not focus, close or minimize anything.
+
 Filter the windows (also for `--switch`) with `--app-id`, `--title` and `--status` (`minimized`, `maximized`, `fullscreen`, `activated`). Lists are comma separated globs; a leading `!` excludes, `\,` is a literal comma:
 
     skippy-wl --toggle --app-id kitty,foot
