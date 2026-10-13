@@ -18,13 +18,15 @@ Start the daemon, then toggle the overlay:
     skippy-wl --daemon &
     skippy-wl --toggle
 
-Other commands: `--show`, `--switch` (focus the previous window, no overlay), `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
+Other commands: `--show`, `--switch` (focus the previous window, no overlay), `--activate <identifier>` (focus that window, e.g. one printed by `--multi-select`), `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
 
 Pick several windows with `skippy-wl --show --multi-select`. It prints their identifiers, one per line.
 
 Click or press Space to toggle a window, Enter to confirm, Escape to cancel (exit status 1, no output).
 
 Note: it runs without the daemon and does not focus, close or minimize anything.
+
+Focus one window from a pick: `skippy-wl --activate "$(skippy-wl --show --multi-select | head -n1)"`.
 
 Filter the windows (also for `--switch`) with `--app-id`, `--title` and `--status` (`minimized`, `maximized`, `fullscreen`, `activated`). Lists are comma separated globs; a leading `!` excludes, `\,` is a literal comma:
 
