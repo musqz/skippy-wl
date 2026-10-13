@@ -14,6 +14,14 @@ skippy-wl \- window overview for labwc
 .IR LIST ]
 .RB [ \-\-next | \-\-prev ]
 .br
+.B skippy-wl \-\-show \-\-multi\-select
+.RB [ \-\-app\-id
+.IR LIST ]
+.RB [ \-\-title
+.IR LIST ]
+.RB [ \-\-status
+.IR LIST ]
+.br
 .B skippy-wl \-\-switch
 .RB [ \-\-app\-id
 .IR LIST ]
@@ -51,6 +59,13 @@ Open the overlay, or close it if it is open.
 .TP
 .B \-\-show
 Open the overlay. Does nothing if it is open.
+.TP
+.B \-\-show \-\-multi\-select
+Pick several windows. A click or
+.B Space
+toggles the window, a toggled window is tinted. Nothing is focused. On
+.B Enter
+the identifiers of the toggled windows are printed to stdout, one per line. On cancel, or with nothing toggled, nothing is printed and the exit status is 1. Close and minimize are disabled. Runs in its own process, not in the daemon.
 .TP
 .B \-\-switch
 Focus the previous window at once and draw nothing: the second window in the usage order, or the first if no window has focus.
@@ -138,7 +153,7 @@ First or last window.
 Next or previous window.
 .TP
 .B Return
-Focus the selected window.
+Focus the selected window (with \-\-multi\-select: confirm).
 .TP
 .B Delete
 Close the selected window.
@@ -147,9 +162,9 @@ Close the selected window.
 Minimize the selected window, or restore it if it is minimized. Minimized windows are dimmed.
 .TP
 .B Escape
-Close the overlay.
+Close the overlay (with \-\-multi\-select: cancel).
 .PP
-Mouse: hover selects, left click focuses, middle click closes the window, left click on empty space closes the overlay.
+Mouse: hover selects, left click focuses (toggles with \-\-multi\-select), middle click closes the window, left click on empty space closes the overlay.
 .SH CONFIGURATION
 .I ~/.config/skippy-wl/config
 (or

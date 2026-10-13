@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <xkbcommon/xkbcommon.h>
 
 #include "capture.h"
 #include "config.h"
@@ -28,6 +29,7 @@ struct tile {
 	struct capture *cap;
 	cairo_surface_t *full; /* wraps cap->data, NULL when the capture failed */
 	struct size size;
+	int picked; /* multi-select */
 };
 
 struct buffer {
@@ -68,6 +70,7 @@ static struct {
 	struct surf *ptr_surf;
 	struct surf *target; /* monitors.mode = pointer: the output that shows every window */
 	int quit;
+	int multi, done; /* multi-select; confirmed */
 	struct toplevel *pick; /* window to activate after teardown */
 	int dir; /* 1/-1: opened by --next/--prev */
 	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
@@ -487,6 +490,12 @@ static int render(struct surf *s, cairo_t *cr)
 			cairo_rectangle(cr, r->x + 0.5, r->y + 0.5, r->w - 1, r->h - 1);
 		}
 		cairo_stroke(cr);
+		if (tl->picked) {
+			cairo_set_source_rgba(cr, cfg.highlight[0], cfg.highlight[1], cfg.highlight[2],
+				cfg.highlight[3] * 0.35);
+			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
+			cairo_fill(cr);
+		}
 
 		draw_text(cr, label_text(tl, label, sizeof(label)), r->x, r->y + r->h + 6, r->w, 0,
 			0, 0, (selected ? 1.0 : 0.7) * dim);
@@ -686,13 +695,18 @@ static void choose(int i)
 {
 	if (st.quit || i < 0 || i >= st.n)
 		return;
+	if (st.multi) {
+		st.tiles[i].picked = !st.tiles[i].picked;
+		redraw_all();
+		return;
+	}
 	st.pick = st.tiles[i].t;
 	st.quit = 1;
 }
 
 static void close_tile(int i)
 {
-	if (st.quit || i < 0 || i >= st.n)
+	if (st.quit || st.multi || i < 0 || i >= st.n)
 		return;
 	/* the tile goes away when the window's closed event arrives */
 	if (toplevel_close(st.tiles[i].t) < 0)
@@ -701,7 +715,7 @@ static void close_tile(int i)
 
 static void minimize_tile(int i)
 {
-	if (st.quit || i < 0 || i >= st.n)
+	if (st.quit || st.multi || i < 0 || i >= st.n)
 		return;
 	/* the tile dims when the new state arrives */
 	if (toplevel_set_minimized(st.tiles[i].t, !(toplevel_status(st.tiles[i].t) & STATUS_MINIMIZED)) < 0)
@@ -778,12 +792,19 @@ void overlay_key(uint32_t sym)
 	/* nothing is drawn yet: close, minimize and the like would act on a window the user cannot see */
 	if (st.hidden && act != ACT_CANCEL && act != ACT_SELECT && act != ACT_NEXT && act != ACT_PREV)
 		return;
+	if (st.multi && sym == XKB_KEY_space) {
+		choose(st.sel);
+		return;
+	}
 	switch (act) {
 	case ACT_CANCEL:
 		st.quit = 1;
 		break;
 	case ACT_SELECT:
-		choose(st.sel);
+		if (st.multi)
+			st.done = st.quit = 1;
+		else
+			choose(st.sel);
 		break;
 	case ACT_CLOSE:
 		close_tile(st.sel);
@@ -902,7 +923,7 @@ void overlay_pointer_button(uint32_t button)
 	if (button == BTN_LEFT) {
 		if (hit >= 0)
 			choose(hit);
-		else
+		else if (!st.multi)
 			st.quit = 1;
 	} else if (button == BTN_MIDDLE) {
 		close_tile(hit);
@@ -917,7 +938,7 @@ static int quit_requested(void *arg)
 	return st.quit;
 }
 
-int overlay_run(struct globals *g, const struct filter *filter, int dir)
+int overlay_run(struct globals *g, const struct filter *filter, int dir, int multi)
 {
 	struct output *o;
 	int rc = 0, input_up = 0;
@@ -925,7 +946,8 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir)
 	memset(&st, 0, sizeof(st));
 	st.g = g;
 	st.filter = filter;
-	st.dir = dir;
+	st.dir = multi ? 0 : dir;
+	st.multi = multi;
 	config_load(&cfg);
 	fonts_init();
 	active = 1;
@@ -973,6 +995,23 @@ out:
 	}
 	st.ptr_surf = NULL;
 	st.target = NULL;
+	/* print only after the overlay is gone, so a consumer that focuses windows does not race it */
+	if (st.multi)
+		wl_display_roundtrip(g->display);
+	if (st.multi && !rc) {
+		int any = 0;
+
+		for (int i = 0; i < st.n; i++) {
+			if (!st.tiles[i].picked)
+				continue;
+			any = 1;
+			printf("%s\n", st.tiles[i].t->identifier);
+		}
+		if (fflush(stdout) == EOF)
+			rc = -1;
+		else if (!st.done || !any)
+			rc = 1;
+	}
 	if (st.pick) {
 		/* focus the pick only after the overlay is gone, or the compositor hands focus back */
 		wl_display_roundtrip(g->display);
