@@ -388,10 +388,10 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int bi
 	g_object_unref(pl);
 }
 
-static void paint_icon(cairo_t *cr, cairo_surface_t *ic, int x, int y, double alpha)
+static void paint_icon(cairo_t *cr, cairo_surface_t *ic, int x, int y)
 {
 	cairo_set_source_surface(cr, ic, x, y);
-	cairo_paint_with_alpha(cr, alpha);
+	cairo_paint(cr);
 }
 
 /* 0..1, eased out; 1 once the open animation is over or switched off */
@@ -433,9 +433,6 @@ static int render(struct surf *s, cairo_t *cr)
 		struct rect *r = &s->rects[p];
 		struct tile *tl = &st.tiles[i];
 		int selected = i == st.sel;
-
-		/* minimized windows are dimmed */
-		double dim = toplevel_status(tl->t) & STATUS_MINIMIZED ? 0.45 : 1.0;
 		char label[256];
 
 		if (animating) {
@@ -452,14 +449,14 @@ static int render(struct surf *s, cairo_t *cr)
 		}
 		if (s->scaled[p]) {
 			cairo_set_source_surface(cr, s->scaled[p], r->x, r->y);
-			cairo_paint_with_alpha(cr, dim);
+			cairo_paint(cr);
 			/* corner icon, unless the tile is too small to carry one */
 			if (cfg.icon && r->w >= 3 * cfg.icon_size && r->h >= 3 * cfg.icon_size) {
 				cairo_surface_t *ic = icon_get(tl->app_id, cfg.icon_theme, cfg.icon_size);
 
 				if (ic)
 					paint_icon(cr, ic, r->x + r->w - cfg.icon_size - 6,
-						r->y + r->h - cfg.icon_size - 6, dim);
+						r->y + r->h - cfg.icon_size - 6);
 			}
 		} else {
 			int isz = (r->w < r->h ? r->w : r->h) / 2;
@@ -468,15 +465,15 @@ static int render(struct surf *s, cairo_t *cr)
 			/* a few fixed sizes, so a relayout reuses the cached icons */
 			isz = isz >= 256 ? 256 : isz >= 128 ? 128 : isz >= 96 ? 96 : isz >= 64 ? 64 :
 				isz >= 48 ? 48 : isz >= 32 ? 32 : 0;
-			cairo_set_source_rgba(cr, 0.16, 0.16, 0.18, dim);
+			cairo_set_source_rgb(cr, 0.16, 0.16, 0.18);
 			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
 			cairo_fill(cr);
 			if (cfg.icon && isz)
 				ic = icon_get(tl->app_id, cfg.icon_theme, isz);
 			if (ic)
-				paint_icon(cr, ic, r->x + (r->w - isz) / 2, r->y + (r->h - isz) / 2, dim);
+				paint_icon(cr, ic, r->x + (r->w - isz) / 2, r->y + (r->h - isz) / 2);
 			else
-				draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8 * dim);
+				draw_text(cr, tl->app_id[0] ? tl->app_id : "?", r->x, r->y, r->w, 1, 1, r->h, 0.8);
 		}
 
 		if (selected) {
@@ -498,7 +495,7 @@ static int render(struct surf *s, cairo_t *cr)
 		}
 
 		draw_text(cr, label_text(tl, label, sizeof(label)), r->x, r->y + r->h + 6, r->w, 0,
-			0, 0, (selected ? 1.0 : 0.7) * dim);
+			0, 0, selected ? 1.0 : 0.7);
 		if (animating) {
 			cairo_pop_group_to_source(cr);
 			cairo_paint_with_alpha(cr, fade);
@@ -717,7 +714,6 @@ static void minimize_tile(int i)
 {
 	if (st.quit || st.multi || i < 0 || i >= st.n)
 		return;
-	/* the tile dims when the new state arrives */
 	if (toplevel_set_minimized(st.tiles[i].t, !(toplevel_status(st.tiles[i].t) & STATUS_MINIMIZED)) < 0)
 		fprintf(stderr, "skippy-wl: cannot minimize this window (no wlr handle paired)\n");
 }
@@ -952,7 +948,6 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir, int mul
 	fonts_init();
 	active = 1;
 	toplevels_set_closed_cb(on_toplevel_closed);
-	toplevels_set_changed_cb(redraw_all);
 	if (tiles_build() < 0) {
 		rc = -1;
 		goto out;
@@ -1023,7 +1018,6 @@ out:
 	if (input_up)
 		input_finish();
 	toplevels_set_closed_cb(NULL);
-	toplevels_set_changed_cb(NULL);
 	tiles_finish();
 	icons_clear();
 	wl_display_roundtrip(g->display);

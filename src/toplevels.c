@@ -20,7 +20,6 @@ struct wtop {
 	struct wl_output *outs[MAX_OUTS];
 	int n_outs, done, checked, bad;
 	unsigned status; /* STATUS_* bits from the wlr state event */
-	unsigned shown_status; /* status at the last changed_cb */
 	unsigned long mru; /* activation stamp, 0 = never activated */
 	struct toplevel *t;
 };
@@ -28,7 +27,6 @@ struct wtop {
 static struct toplevel *head;
 static struct wtop *whead;
 static void (*closed_cb)(struct toplevel *);
-static void (*changed_cb)(void);
 /* set when a pair disagrees: order pairing can no longer be trusted, so no window gets actions */
 static int pairing_broken;
 static unsigned long mru_clock;
@@ -233,9 +231,6 @@ static void w_done(void *d, struct zwlr_foreign_toplevel_handle_v1 *h)
 	(void)h;
 	w->done = 1;
 	check_pair(w);
-	if (changed_cb && w->status != w->shown_status)
-		changed_cb();
-	w->shown_status = w->status;
 }
 
 static void w_closed(void *d, struct zwlr_foreign_toplevel_handle_v1 *h)
@@ -354,11 +349,6 @@ void toplevels_output_removed(const struct wl_output *out)
 unsigned toplevel_status(const struct toplevel *t)
 {
 	return t->w && !pairing_broken ? t->w->status : STATUS_UNKNOWN;
-}
-
-void toplevels_set_changed_cb(void (*cb)(void))
-{
-	changed_cb = cb;
 }
 
 int toplevel_set_minimized(struct toplevel *t, int minimized)
