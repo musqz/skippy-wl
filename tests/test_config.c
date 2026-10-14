@@ -86,6 +86,10 @@ int main(void)
 
 	CHECK(config_set(&c, "background.image", "/tmp/bg.png") == 0 && !strcmp(c.bg_image, "/tmp/bg.png"));
 
+	CHECK(config_set(&c, "hide.app_id", "foo*, bar") == 0 && !strcmp(c.hide_app.app_id, "foo*, bar"));
+	CHECK(config_set(&c, "hide.title", "Picture-in-Picture") == 0 && !strcmp(c.hide_title.title, "Picture-in-Picture"));
+	CHECK(config_set(&c, "hide.status", "minimized") < 0);
+
 	/* a bind line replaces the defaults for that action */
 	CHECK(config_set(&c, "bind.close", "x, q") == 0);
 	CHECK(config_action(&c, XKB_KEY_x) == ACT_CLOSE && config_action(&c, XKB_KEY_q) == ACT_CLOSE);

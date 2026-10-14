@@ -124,9 +124,16 @@ static int caps_done(void *arg)
 	return 1;
 }
 
+/* [hide] in the config: never shown, not even by --switch */
+static int hidden(const struct toplevel *t)
+{
+	return (cfg.hide_app.app_id[0] && filter_match(&cfg.hide_app, t->app_id, t->title, 0)) ||
+		(cfg.hide_title.title[0] && filter_match(&cfg.hide_title, t->app_id, t->title, 0));
+}
+
 static int wanted(const struct toplevel *t)
 {
-	return filter_match(st.filter, t->app_id, t->title, toplevel_status(t));
+	return !hidden(t) && filter_match(st.filter, t->app_id, t->title, toplevel_status(t));
 }
 
 /* case-insensitive substring of the app id or title; the empty query matches all */
@@ -1114,7 +1121,9 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir, int mul
 	}
 	if (!st.n)
 		goto out;
-	st.sel = dir > 0 && st.n > 1 ? 1 : dir < 0 ? st.n - 1 : 0;
+	/* the first tile is the current window only if it has focus (a hidden or unlisted window may have it) */
+	st.sel = dir > 0 && st.n > 1 && (toplevel_status(st.tiles[0].t) & STATUS_ACTIVATED) ? 1 :
+		dir < 0 ? st.n - 1 : 0;
 	/* a quick tap then picks the window without the capture delay or any drawing */
 	st.hidden = dir && cfg.pivot && cfg.switch_wait > 0;
 	if (!st.hidden && tiles_capture(g) < 0) {
@@ -1195,6 +1204,7 @@ int overlay_switch(struct globals *g, const struct filter *filter)
 	memset(&st, 0, sizeof(st));
 	st.g = g;
 	st.filter = filter;
+	config_load(&cfg);
 	/* before the window list: its roundtrips may deliver a closed event that frees a toplevel */
 	input_init(g);
 	if (tiles_build() < 0) {

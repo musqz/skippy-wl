@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include "filter.h"
+
 enum action {
 	ACT_SELECT, ACT_CANCEL, ACT_CLOSE, ACT_MINIMIZE,
 	ACT_LEFT, ACT_RIGHT, ACT_UP, ACT_DOWN, ACT_HOME, ACT_END,
@@ -31,6 +33,7 @@ struct config {
 	int bg_set, highlight_set, border_set; /* set explicitly: a theme file must not override them */
 	char bg_image[256]; /* PNG, JPEG or AVIF shown behind the tiles; empty = none */
 	char theme_file[256]; /* labwc themerc style file the border colors are read from */
+	struct filter hide_app, hide_title; /* windows matching either are never shown; an empty field hides nothing */
 	uint32_t keys[ACT_COUNT][MAX_BINDS]; /* xkb keysyms, 0 = unused */
 };
 
