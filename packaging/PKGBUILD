@@ -1,4 +1,4 @@
-# Maintainer: musqz
+# Maintainer: musqz <gummy-fang-deputy@duck.com>
 # Local build from this checkout (committed HEAD): cd packaging && makepkg -f
 pkgname=skippy-wl-git
 pkgver=0.1.0.r82.g558d411
