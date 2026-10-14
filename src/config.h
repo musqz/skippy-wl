@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include "filter.h"
+
 enum action {
 	ACT_SELECT, ACT_CANCEL, ACT_CLOSE, ACT_MINIMIZE,
 	ACT_LEFT, ACT_RIGHT, ACT_UP, ACT_DOWN, ACT_HOME, ACT_END,
@@ -31,12 +33,15 @@ struct config {
 	int bg_set, highlight_set, border_set; /* set explicitly: a theme file must not override them */
 	char bg_image[256]; /* PNG, JPEG or AVIF shown behind the tiles; empty = none */
 	char theme_file[256]; /* labwc themerc style file the border colors are read from */
+	struct filter hide_app, hide_title, hide_status; /* windows matching any are never shown; an empty field hides nothing */
 	uint32_t keys[ACT_COUNT][MAX_BINDS]; /* xkb keysyms, 0 = unused */
 };
 
 void config_defaults(struct config *c);
 /* defaults, then ~/.config/skippy-wl/config; problems go to stderr and are skipped */
 void config_load(struct config *c);
+/* true if a [hide] rule matches the window */
+int config_hidden(const struct config *c, const char *app_id, const char *title, unsigned status);
 /* one setting as "section.key" (for example "layout.margin"); -1 if the key or value is invalid */
 int config_set(struct config *c, const char *key, const char *value);
 /* action bound to keysym, or -1 */

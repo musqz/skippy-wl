@@ -289,6 +289,19 @@ and
 in the config file win. Example:
 .IR ~/.local/share/themes/noctalia/openbox-3/themerc .
 .TP
+.B hide.app_id hide.title hide.status
+Comma separated globs, same syntax as
+.B \-\-app\-id
+and
+.BR \-\-title .
+A window that matches any of them is never shown, also not by
+.BR \-\-switch .
+A leading
+.B !
+hides every window except the matches. hide.status takes the names of
+.BR \-\-status .
+A window whose state is not known is not hidden by it. Empty by default.
+.TP
 .B bind.select bind.cancel bind.close bind.minimize bind.left bind.right bind.up bind.down bind.home bind.end bind.next bind.prev
 Keys of the [bind] section, for example
 .IR "select = Return" .

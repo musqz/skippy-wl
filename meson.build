@@ -64,7 +64,7 @@ test_layout = executable('test_layout', 'tests/test_layout.c', 'src/layout.c',
   include_directories: include_directories('src'))
 test('layout', test_layout)
 
-test_config = executable('test_config', 'tests/test_config.c', 'src/config.c',
+test_config = executable('test_config', 'tests/test_config.c', 'src/config.c', 'src/filter.c',
   include_directories: include_directories('src'),
   dependencies: [xkbcommon])
 test('config', test_config)

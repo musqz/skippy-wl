@@ -140,6 +140,12 @@ int config_set(struct config *c, const char *key, const char *value)
 		snprintf(c->icon_theme, sizeof(c->icon_theme), "%s", value);
 		return 0;
 	}
+	if (!strcmp(key, "hide.app_id"))
+		return filter_set(&c->hide_app, "app-id", value);
+	if (!strcmp(key, "hide.title"))
+		return filter_set(&c->hide_title, "title", value);
+	if (!strcmp(key, "hide.status"))
+		return filter_set(&c->hide_status, "status", value);
 	if (!strcmp(key, "animation.duration"))
 		return parse_int(value, 0, 1000, &c->anim_ms);
 	if (!strcmp(key, "animation.enabled"))
@@ -233,7 +239,7 @@ int config_action(const struct config *c, uint32_t keysym)
 	return -1;
 }
 
-static const char *const sections[] = { "layout", "monitors", "switch", "icons", "animation", "background", "colors", "bind" };
+static const char *const sections[] = { "layout", "monitors", "switch", "icons", "animation", "background", "colors", "hide", "bind" };
 
 static int known_section(const char *name)
 {
@@ -405,4 +411,11 @@ void config_load(struct config *c)
 	}
 	fclose(f);
 	load_theme(c);
+}
+
+int config_hidden(const struct config *c, const char *app_id, const char *title, unsigned status)
+{
+	return (c->hide_app.app_id[0] && filter_match(&c->hide_app, app_id, title, 0)) ||
+		(c->hide_title.title[0] && filter_match(&c->hide_title, app_id, title, 0)) ||
+		(c->hide_status.status[0] && filter_match(&c->hide_status, app_id, title, status));
 }
