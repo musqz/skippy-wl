@@ -66,9 +66,9 @@ Open the overlay. Does nothing if it is open.
 .B \-\-show \-\-multi\-select
 Pick several windows. A click or
 .B Space
-toggles the window, a toggled window is tinted. Nothing is focused. On
+toggles the window, a toggled window is tinted. The focused window starts selected. Nothing is focused. On
 .B Enter
-the identifiers of the toggled windows are printed to stdout, one per line. On cancel, or with nothing toggled, nothing is printed and the exit status is 1. Close and minimize are disabled. Runs in its own process, not in the daemon.
+the identifiers of the toggled windows are printed to stdout, one per line, in the order they were toggled. On cancel, or with nothing toggled, nothing is printed and the exit status is 1. Close and minimize are disabled. Runs in its own process, not in the daemon.
 .TP
 .BI \-\-activate " identifier"
 Focus the window with that toplevel identifier, such as one printed by
