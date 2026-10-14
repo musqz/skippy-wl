@@ -67,7 +67,7 @@ Instead of the `skippy-wl --daemon &` autostart line (remove it), run the daemon
 
 After an install or upgrade: `systemctl --user daemon-reload && systemctl --user restart skippy-wl.service`. Before `./install.sh --uninstall`: `systemctl --user stop skippy-wl.service`.
 
-Logs: `journalctl --user -u skippy-wl`.
+Logs: `journalctl --user -u skippy-wl`. A second daemon exits with status 3 ("daemon already running") and the service does not retry.
 
 ## Config
 Copy the template and edit it:

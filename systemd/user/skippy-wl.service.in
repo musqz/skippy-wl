@@ -7,3 +7,4 @@ After=graphical-session.target
 ExecStart=@bindir@/skippy-wl --daemon
 Restart=on-failure
 RestartSec=2
+SuccessExitStatus=3
