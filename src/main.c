@@ -104,13 +104,19 @@ static int run(struct wl_display *dpy, struct toplevel **ts, int n, const char *
 	return rc;
 }
 
+/* "-1", or desk numbers separated by commas */
+static int desk_ok(const char *v)
+{
+	return !strcmp(v, "-1") || (*v && strspn(v, "0123456789,") == strlen(v));
+}
+
 static int usage(const char *argv0)
 {
 	fprintf(stderr, "skippy-wl %s\nusage: %s --daemon\n"
-		"       %s --toggle | --show [--app-id LIST] [--title LIST] [--status LIST]\n"
+		"       %s --toggle | --show [--app-id LIST] [--title LIST] [--status LIST] [--desk LIST]\n"
 		"                          [--next | --prev]\n"
-		"       %s --show --multi-select [--app-id LIST] [--title LIST] [--status LIST]\n"
-		"       %s --switch [--app-id LIST] [--title LIST] [--status LIST]\n"
+		"       %s --show --multi-select [--app-id LIST] [--title LIST] [--status LIST] [--desk LIST]\n"
+		"       %s --switch [--app-id LIST] [--title LIST] [--status LIST] [--desk LIST]\n"
 		"       %s --activate <identifier>\n"
 		"       %s --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
@@ -239,9 +245,9 @@ int main(int argc, char **argv)
 				return 1;
 			}
 			if (!strcmp(key, "desk")) {
-				/* skippy-xd option: every window is shown anyway */
-				if (strcmp(val, "-1")) {
-					fprintf(stderr, "skippy-wl: only --desk -1 (all windows) is supported\n");
+				/* skippy-xd option: labwc has no window-to-workspace info, so every window is shown */
+				if (!desk_ok(val)) {
+					fprintf(stderr, "skippy-wl: --desk takes -1 or a list of desk numbers such as 1,2,3\n");
 					return 1;
 				}
 				continue;

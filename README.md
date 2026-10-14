@@ -22,7 +22,7 @@ Other commands: `--show`, `--switch` (focus the previous window, no overlay), `-
 
 Type `/` (or any unbound key) to filter the tiles by app id or title. Escape clears the filter, a second Escape closes the overlay.
 
-`--desk -1` from skippy-xd binds is accepted and does nothing: every window is shown anyway. Other `--desk` values are an error.
+`--desk -1` and `--desk 1,2,3,4` from skippy-xd binds are accepted and do nothing: labwc does not say which workspace a window is on, so every window is shown. Other `--desk` values are an error.
 
 Hide windows for good with `[hide]` in the config (`app_id`, `title`, `status`; same syntax as the filters). Hidden windows are also skipped by `--switch`.
 
