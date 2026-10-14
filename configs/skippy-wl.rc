@@ -1,4 +1,4 @@
-## skippy-wl config: copy to ~/.config/skippy-wl/config
+## skippy-wl config: copy to ~/.config/skippy-wl/skippy-wl.rc
 ## "key = value" lines grouped under [sections]. Read each time the overlay opens.
 ## Remove the leading # from an option to set it.
 
