@@ -1,8 +1,6 @@
 # skippy-wl
 Expose tool like skippy-xd but for wayland
 
-# Unstable
-
 ## Requirements
 - labwc 0.20 or newer (wlroots 0.20). Other compositors are untested.
 - Protocols: ext-foreign-toplevel-list, ext-image-capture-source, ext-image-copy-capture, wlr-foreign-toplevel-management, wlr-layer-shell.
