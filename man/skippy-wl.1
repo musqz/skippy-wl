@@ -169,8 +169,11 @@ Close the selected window.
 .B m
 Minimize the selected window, or restore it if it is minimized.
 .TP
+.B / or any unbound key
+Type to filter: only windows whose app id or title contains the text stay. While the filter is open every printable key types, including bound letters such as m. Backspace deletes a character (on an empty filter it closes the filter).
+.TP
 .B Escape
-Close the overlay (with \-\-multi\-select: cancel).
+Clear the filter. With no filter: close the overlay (with \-\-multi\-select: cancel).
 .PP
 Mouse: hover selects, left click focuses (toggles with \-\-multi\-select), middle click closes the window, left click on empty space closes the overlay.
 .SH CONFIGURATION

@@ -84,12 +84,15 @@ static struct {
 	double anim_t0; /* ms when the tiles first showed; 0 = not yet */
 	uint32_t held; /* modifiers down when the keyboard got focus */
 	const struct filter *filter;
+	char query[96]; /* typed filter: tiles whose app id or title lacks it are hidden */
+	int qlen, filtering;
 } st;
 
 static void draw(struct surf *s);
 static void relayout(struct surf *s);
 static void set_target(struct surf *s);
 static void relayout_all(void);
+static void refilter(void);
 static void tile_free(struct tile *tl);
 static void layout_free(struct surf *s);
 
@@ -124,6 +127,20 @@ static int caps_done(void *arg)
 static int wanted(const struct toplevel *t)
 {
 	return filter_match(st.filter, t->app_id, t->title, toplevel_status(t));
+}
+
+/* case-insensitive substring of the app id or title; the empty query matches all */
+static int tile_matches(const struct tile *tl)
+{
+	return !st.qlen || strcasestr(tl->title, st.query) || strcasestr(tl->app_id, st.query);
+}
+
+static int any_match(void)
+{
+	for (int i = 0; i < st.n; i++)
+		if (tile_matches(&st.tiles[i]))
+			return 1;
+	return 0;
 }
 
 static int tiles_build(void)
@@ -237,7 +254,7 @@ static void on_toplevel_closed(struct toplevel *t)
 		st.sel--;
 	else if (st.sel >= st.n)
 		st.sel = st.n - 1;
-	relayout_all();
+	refilter();
 }
 
 /* ---- per-output layout ---- */
@@ -276,7 +293,8 @@ static void relayout(struct surf *s)
 	if (!s->vis)
 		return;
 	for (int i = 0; i < st.n; i++)
-		if (cfg.monitors == MON_POINTER ? s == st.target : toplevel_on_output(st.tiles[i].t, s->output))
+		if (tile_matches(&st.tiles[i]) &&
+				(cfg.monitors == MON_POINTER ? s == st.target : toplevel_on_output(st.tiles[i].t, s->output)))
 			s->vis[s->nvis++] = i;
 	if (!s->nvis) {
 		layout_free(s);
@@ -552,6 +570,16 @@ static int render(struct surf *s, cairo_t *cr)
 			cairo_restore(cr);
 		}
 	}
+	if (st.filtering && !waiting) {
+		char bar[128];
+		int bw = s->w < 520 ? s->w - 40 : 480;
+
+		snprintf(bar, sizeof(bar), "/ %s%s", st.query, any_match() ? "" : "   (no match)");
+		cairo_set_source_rgba(cr, 0, 0, 0, 0.65);
+		cairo_rectangle(cr, (s->w - bw) / 2.0, 16, bw, 44);
+		cairo_fill(cr);
+		draw_text(cr, bar, (s->w - bw) / 2, 16, bw, 1, 1, 44, 1.0);
+	}
 	return animating;
 }
 
@@ -741,7 +769,7 @@ static int pos_of(const struct surf *s, int tile)
 
 static void choose(int i)
 {
-	if (st.quit || i < 0 || i >= st.n)
+	if (st.quit || i < 0 || i >= st.n || !tile_matches(&st.tiles[i]))
 		return;
 	if (st.multi) {
 		st.tiles[i].picked = !st.tiles[i].picked;
@@ -754,7 +782,7 @@ static void choose(int i)
 
 static void close_tile(int i)
 {
-	if (st.quit || st.multi || i < 0 || i >= st.n)
+	if (st.quit || st.multi || i < 0 || i >= st.n || !tile_matches(&st.tiles[i]))
 		return;
 	/* the tile goes away when the window's closed event arrives */
 	if (toplevel_close(st.tiles[i].t) < 0)
@@ -763,7 +791,7 @@ static void close_tile(int i)
 
 static void minimize_tile(int i)
 {
-	if (st.quit || st.multi || i < 0 || i >= st.n)
+	if (st.quit || st.multi || i < 0 || i >= st.n || !tile_matches(&st.tiles[i]))
 		return;
 	if (toplevel_set_minimized(st.tiles[i].t, !(toplevel_status(st.tiles[i].t) & STATUS_MINIMIZED)) < 0)
 		fprintf(stderr, "skippy-wl: cannot minimize this window (no wlr handle paired)\n");
@@ -817,11 +845,69 @@ static void move_vert(int dir)
 
 static void cycle(int dir)
 {
-	if (st.n)
-		set_sel((st.sel + dir + st.n) % st.n);
+	int to = st.sel;
+
+	for (int k = 0; k < st.n; k++) {
+		to = (to + dir + st.n) % st.n;
+		if (tile_matches(&st.tiles[to])) {
+			set_sel(to);
+			return;
+		}
+	}
 }
 
-void overlay_key(uint32_t sym)
+/* the query changed: re-flow and keep the selection on a visible tile */
+static void refilter(void)
+{
+	if (st.sel < 0 || st.sel >= st.n || !tile_matches(&st.tiles[st.sel]))
+		for (int i = 0; i < st.n; i++)
+			if (tile_matches(&st.tiles[i])) {
+				st.sel = i;
+				break;
+			}
+	relayout_all();
+}
+
+static int printable(const char *text)
+{
+	return (unsigned char)text[0] >= 0x20 && text[0] != 0x7f;
+}
+
+static void query_add(const char *text)
+{
+	size_t n = strlen(text);
+
+	st.filtering = 1;
+	if (st.qlen + n < sizeof(st.query)) {
+		memcpy(st.query + st.qlen, text, n + 1);
+		st.qlen += (int)n;
+	}
+	refilter();
+}
+
+static void query_pop(void)
+{
+	if (!st.qlen) {
+		st.filtering = 0;
+		redraw_all();
+		return;
+	}
+	do
+		st.qlen--;
+	while (st.qlen && ((unsigned char)st.query[st.qlen] & 0xc0) == 0x80);
+	st.query[st.qlen] = 0;
+	refilter();
+}
+
+static void query_clear(void)
+{
+	st.qlen = 0;
+	st.query[0] = 0;
+	st.filtering = 0;
+	refilter();
+}
+
+void overlay_key(uint32_t sym, const char *text)
 {
 	struct surf *s;
 	int act;
@@ -841,6 +927,29 @@ void overlay_key(uint32_t sym)
 		return;
 	if (st.multi && sym == XKB_KEY_space) {
 		choose(st.sel);
+		return;
+	}
+	if (st.filtering) {
+		if (sym == XKB_KEY_BackSpace) {
+			query_pop();
+			return;
+		}
+		if (act == ACT_CANCEL && !printable(text)) {
+			query_clear();
+			return;
+		}
+		if (printable(text)) {
+			query_add(text);
+			return;
+		}
+	} else if (act < 0 && printable(text)) {
+		/* "/" only opens the filter; any other unbound key also starts it */
+		if (text[0] == '/' && !text[1]) {
+			st.filtering = 1;
+			redraw_all();
+		} else {
+			query_add(text);
+		}
 		return;
 	}
 	switch (act) {
@@ -1049,7 +1158,7 @@ out:
 		int any = 0;
 
 		for (int i = 0; i < st.n; i++) {
-			if (!st.tiles[i].picked)
+			if (!st.tiles[i].picked || !tile_matches(&st.tiles[i]))
 				continue;
 			any = 1;
 			printf("%s\n", st.tiles[i].t->identifier);

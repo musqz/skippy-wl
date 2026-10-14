@@ -20,6 +20,8 @@ Start the daemon, then toggle the overlay:
 
 Other commands: `--show`, `--switch` (focus the previous window, no overlay), `--activate <identifier>` (focus that window, e.g. one printed by `--multi-select`), `--quit`, `--version`. `man skippy-wl` lists the overlay keys.
 
+Type `/` (or any unbound key) to filter the tiles by app id or title. Escape clears the filter, a second Escape closes the overlay.
+
 Pick several windows with `skippy-wl --show --multi-select`. It prints their identifiers, one per line.
 
 Click or press Space to toggle a window, Enter to confirm, Escape to cancel (exit status 1, no output).
