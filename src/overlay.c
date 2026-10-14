@@ -35,7 +35,7 @@ struct tile {
 	struct capture *cap;
 	cairo_surface_t *full; /* wraps cap->data, NULL when the capture failed */
 	struct size size;
-	int picked; /* multi-select */
+	int picked; /* multi-select: 1-based toggle order, 0 = not picked */
 };
 
 struct buffer {
@@ -80,6 +80,7 @@ static struct {
 	struct surf *target; /* monitors.mode = pointer: the output that shows every window */
 	int quit;
 	int multi, done; /* multi-select; confirmed */
+	int pick_seq;
 	struct toplevel *pick; /* window to activate after teardown */
 	int dir; /* 1/-1: opened by --next/--prev */
 	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
@@ -806,7 +807,7 @@ static void choose(int i)
 	if (st.quit || i < 0 || i >= st.n || !tile_matches(&st.tiles[i]))
 		return;
 	if (st.multi) {
-		st.tiles[i].picked = !st.tiles[i].picked;
+		st.tiles[i].picked = st.tiles[i].picked ? 0 : ++st.pick_seq;
 		redraw_all();
 		return;
 	}
@@ -1107,7 +1108,7 @@ void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
 		set_target(st.ptr_surf);
 	}
 	/* the parked cursor's enter event must not replace the --next/--prev selection */
-	if (st.dir && !st.ptr_seen) {
+	if ((st.dir || st.multi) && !st.ptr_seen) {
 		st.ptr_seen = 1;
 		ptr_x = x;
 		ptr_y = y;
@@ -1173,10 +1174,17 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir, int mul
 	if (!st.n)
 		goto out;
 	/* the first tile is the current window only if it has focus (a hidden or unlisted window may have it) */
-	st.sel = dir > 0 && st.n > 1 && (toplevel_status(st.tiles[0].t) & STATUS_ACTIVATED) ? 1 :
-		dir < 0 ? st.n - 1 : 0;
+	st.sel = st.dir > 0 && st.n > 1 && (toplevel_status(st.tiles[0].t) & STATUS_ACTIVATED) ? 1 :
+		st.dir < 0 ? st.n - 1 : 0;
+	/* this process has no usage history, so the focused window may not be the first tile */
+	if (multi)
+		for (int i = 0; i < st.n; i++)
+			if (toplevel_status(st.tiles[i].t) & STATUS_ACTIVATED) {
+				st.sel = i;
+				break;
+			}
 	/* a quick tap then picks the window without the capture delay or any drawing */
-	st.hidden = dir && cfg.pivot && cfg.switch_wait > 0;
+	st.hidden = st.dir && cfg.pivot && cfg.switch_wait > 0;
 	if (!st.hidden && tiles_capture(g) < 0) {
 		rc = -1;
 		goto out;
@@ -1217,12 +1225,14 @@ out:
 	if (st.multi && !rc) {
 		int any = 0;
 
-		for (int i = 0; i < st.n; i++) {
-			if (!st.tiles[i].picked || !tile_matches(&st.tiles[i]))
-				continue;
-			any = 1;
-			printf("%s\n", st.tiles[i].t->identifier);
-		}
+		/* in the order the windows were toggled */
+		for (int seq = 1; seq <= st.pick_seq; seq++)
+			for (int i = 0; i < st.n; i++) {
+				if (st.tiles[i].picked != seq || !tile_matches(&st.tiles[i]))
+					continue;
+				any = 1;
+				printf("%s\n", st.tiles[i].t->identifier);
+			}
 		if (fflush(stdout) == EOF)
 			rc = -1;
 		else if (!st.done || !any)
