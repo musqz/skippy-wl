@@ -23,6 +23,9 @@
 #define CAPTURE_WAIT_MS 1500
 #define PLACEHOLDER_W 640
 #define PLACEHOLDER_H 400
+#define BAR_Y 16 /* type-to-filter bar */
+#define BAR_H 44
+#define BAR_BOTTOM (BAR_Y + BAR_H + 8) /* the grid starts below this while filtering */
 
 struct tile {
 	struct toplevel *t; /* valid until its closed event removes this tile */
@@ -93,6 +96,7 @@ static void relayout(struct surf *s);
 static void set_target(struct surf *s);
 static void relayout_all(void);
 static void refilter(void);
+static struct surf *active_surf(void);
 static void tile_free(struct tile *tl);
 static void layout_free(struct surf *s);
 
@@ -291,6 +295,7 @@ static void layout_free(struct surf *s)
 static void relayout(struct surf *s)
 {
 	struct size *src;
+	int top;
 
 	layout_free(s);
 	if (!st.n || st.hidden)
@@ -316,7 +321,9 @@ static void relayout(struct surf *s)
 	}
 	for (int p = 0; p < s->nvis; p++)
 		src[p] = st.tiles[s->vis[p]].size;
-	s->cols = layout_grid(src, s->nvis, (struct size){ s->w - 2 * cfg.margin, s->h - 2 * cfg.margin },
+	/* the filter bar gets its own strip when the margin is too small for it */
+	top = st.filtering && cfg.margin < BAR_BOTTOM ? BAR_BOTTOM : cfg.margin;
+	s->cols = layout_grid(src, s->nvis, (struct size){ s->w - 2 * cfg.margin, s->h - top - cfg.margin },
 		cfg.spacing, cfg.label_h, s->rects);
 	free(src);
 
@@ -326,7 +333,7 @@ static void relayout(struct surf *s)
 		cairo_t *cr;
 
 		r->x += cfg.margin;
-		r->y += cfg.margin;
+		r->y += top;
 		if (!tl->full)
 			continue;
 		/* scale once to tile size; drawing then only blits */
@@ -398,8 +405,8 @@ static const char *label_text(const struct tile *tl, char *buf, size_t len)
 	}
 }
 
-static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int big,
-		int center_v, int h, double alpha)
+static void draw_text_e(cairo_t *cr, const char *text, int x, int y, int w, int big,
+		int center_v, int h, double alpha, PangoEllipsizeMode ellipsize)
 {
 	PangoLayout *pl = pango_cairo_create_layout(cr);
 	int tw, th;
@@ -407,13 +414,19 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int bi
 	pango_layout_set_font_description(pl, big ? font_big : font);
 	pango_layout_set_text(pl, text, -1);
 	pango_layout_set_width(pl, w * PANGO_SCALE);
-	pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_END);
+	pango_layout_set_ellipsize(pl, ellipsize);
 	pango_layout_set_alignment(pl, PANGO_ALIGN_CENTER);
 	pango_layout_get_pixel_size(pl, &tw, &th);
 	cairo_set_source_rgba(cr, 1, 1, 1, alpha);
 	cairo_move_to(cr, x, center_v ? y + (h - th) / 2.0 : y);
 	pango_cairo_show_layout(cr, pl);
 	g_object_unref(pl);
+}
+
+static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int big,
+		int center_v, int h, double alpha)
+{
+	draw_text_e(cr, text, x, y, w, big, center_v, h, alpha, PANGO_ELLIPSIZE_END);
 }
 
 static void paint_icon(cairo_t *cr, cairo_surface_t *ic, int x, int y)
@@ -577,14 +590,16 @@ static int render(struct surf *s, cairo_t *cr)
 		}
 	}
 	if (st.filtering && !waiting) {
-		char bar[128];
-		int bw = s->w < 520 ? s->w - 40 : 480;
+		int bw = s->w < 520 ? s->w - 40 : 480, bx = (s->w - bw) / 2, nm = any_match() ? 0 : 120;
 
-		snprintf(bar, sizeof(bar), "/ %s%s", st.query, any_match() ? "" : "   (no match)");
 		cairo_set_source_rgba(cr, 0, 0, 0, 0.65);
-		cairo_rectangle(cr, (s->w - bw) / 2.0, 16, bw, 44);
+		cairo_rectangle(cr, bx, BAR_Y, bw, BAR_H);
 		cairo_fill(cr);
-		draw_text(cr, bar, (s->w - bw) / 2, 16, bw, 1, 1, 44, 1.0);
+		draw_text_e(cr, "/", bx + 12, BAR_Y, 20, 1, 1, BAR_H, 1.0, PANGO_ELLIPSIZE_END);
+		/* a long query keeps its newest characters visible */
+		draw_text_e(cr, st.query, bx + 36, BAR_Y, bw - 48 - nm, 1, 1, BAR_H, 1.0, PANGO_ELLIPSIZE_START);
+		if (nm)
+			draw_text_e(cr, "(no match)", bx + bw - nm - 12, BAR_Y, nm, 0, 1, BAR_H, 0.6, PANGO_ELLIPSIZE_END);
 	}
 	return animating;
 }
@@ -865,13 +880,34 @@ static void cycle(int dir)
 /* the query changed: re-flow and keep the selection on a visible tile */
 static void refilter(void)
 {
-	if (st.sel < 0 || st.sel >= st.n || !tile_matches(&st.tiles[st.sel]))
-		for (int i = 0; i < st.n; i++)
-			if (tile_matches(&st.tiles[i])) {
-				st.sel = i;
-				break;
-			}
-	relayout_all();
+	struct surf *a;
+
+	for (struct surf *s = st.surfs; s; s = s->next)
+		if (s->w)
+			relayout(s);
+	if (st.sel < 0 || st.sel >= st.n || !tile_matches(&st.tiles[st.sel])) {
+		/* prefer a tile on the output the user is working on */
+		a = active_surf();
+		if (a && a->nvis) {
+			st.sel = a->vis[0];
+		} else {
+			for (int i = 0; i < st.n; i++)
+				if (tile_matches(&st.tiles[i])) {
+					st.sel = i;
+					break;
+				}
+		}
+	}
+	redraw_all();
+}
+
+/* the filter bar opened or closed: tiles move only if the bar needs its own strip */
+static void bar_toggled(void)
+{
+	if (cfg.margin < BAR_BOTTOM)
+		relayout_all();
+	else
+		redraw_all();
 }
 
 static int printable(const char *text)
@@ -895,7 +931,7 @@ static void query_pop(void)
 {
 	if (!st.qlen) {
 		st.filtering = 0;
-		redraw_all();
+		bar_toggled();
 		return;
 	}
 	do
@@ -952,7 +988,7 @@ void overlay_key(uint32_t sym, const char *text)
 		/* "/" only opens the filter; any other unbound key also starts it */
 		if (text[0] == '/' && !text[1]) {
 			st.filtering = 1;
-			redraw_all();
+			bar_toggled();
 		} else {
 			query_add(text);
 		}
