@@ -28,7 +28,8 @@ struct config {
 	int switch_hold; /* ms of pause after which releasing the modifiers leaves the overlay open; 0 = always pick */
 	char font[96];
 	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
-	int highlight_set, border_set; /* set explicitly: a theme file must not override them */
+	int bg_set, highlight_set, border_set; /* set explicitly: a theme file must not override them */
+	char bg_image[256]; /* PNG, JPEG or AVIF shown behind the tiles; empty = none */
 	char theme_file[256]; /* labwc themerc style file the border colors are read from */
 	uint32_t keys[ACT_COUNT][MAX_BINDS]; /* xkb keysyms, 0 = unused */
 };

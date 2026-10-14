@@ -176,8 +176,12 @@ int config_set(struct config *c, const char *key, const char *value)
 		snprintf(c->font, sizeof(c->font), "%s", value);
 		return 0;
 	}
-	if (!strcmp(key, "colors.background"))
-		return parse_color(value, c->bg);
+	if (!strcmp(key, "colors.background")) {
+		if (parse_color(value, c->bg) < 0)
+			return -1;
+		c->bg_set = 1;
+		return 0;
+	}
 	if (!strcmp(key, "colors.highlight")) {
 		if (parse_color(value, c->highlight) < 0)
 			return -1;
@@ -188,6 +192,20 @@ int config_set(struct config *c, const char *key, const char *value)
 		if (parse_color(value, c->border) < 0)
 			return -1;
 		c->border_set = 1;
+		return 0;
+	}
+	if (!strcmp(key, "background.image")) {
+		const char *home = getenv("HOME");
+		char path[sizeof(c->bg_image)];
+		int n;
+
+		if (value[0] == '~' && value[1] == '/' && home)
+			n = snprintf(path, sizeof(path), "%s%s", home, value + 1);
+		else
+			n = snprintf(path, sizeof(path), "%s", value);
+		if (n >= (int)sizeof(path))
+			return -1;
+		memcpy(c->bg_image, path, sizeof(path));
 		return 0;
 	}
 	if (!strcmp(key, "colors.theme_file")) {
@@ -215,7 +233,7 @@ int config_action(const struct config *c, uint32_t keysym)
 	return -1;
 }
 
-static const char *const sections[] = { "layout", "monitors", "switch", "icons", "animation", "colors", "bind" };
+static const char *const sections[] = { "layout", "monitors", "switch", "icons", "animation", "background", "colors", "bind" };
 
 static int known_section(const char *name)
 {

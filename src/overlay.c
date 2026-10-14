@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include "bgimage.h"
 #include "capture.h"
 #include "config.h"
 #include "filter.h"
@@ -54,6 +55,7 @@ struct surf {
 	int nvis;
 	struct rect *rects;
 	cairo_surface_t **scaled;
+	cairo_surface_t *bg; /* background image scaled to cover this surface */
 	int cols;
 };
 
@@ -66,6 +68,8 @@ static struct {
 	struct tile *tiles;
 	int n;
 	struct surf *surfs;
+	cairo_surface_t *bg_img; /* background.image as loaded; NULL = none or not tried yet */
+	int bg_tried;
 	int sel;
 	struct surf *ptr_surf;
 	struct surf *target; /* monitors.mode = pointer: the output that shows every window */
@@ -410,6 +414,44 @@ static double anim_progress(void)
 	return 1 - t * t * t;
 }
 
+/* loaded on the first draw, so a quick tap that never draws does not pay for the decode */
+static cairo_surface_t *bg_image(void)
+{
+	if (!st.bg_tried && cfg.bg_image[0]) {
+		st.bg_tried = 1;
+		st.bg_img = bgimage_load(cfg.bg_image);
+		if (!st.bg_img)
+			fprintf(stderr, "skippy-wl: cannot read background.image %s\n", cfg.bg_image);
+	}
+	return st.bg_img;
+}
+
+/* scale and center the image to cover the surface, once per surface size */
+static cairo_surface_t *bg_cover(struct surf *s)
+{
+	cairo_surface_t *out;
+	cairo_t *cr;
+	double iw, ih, sc;
+
+	if (s->bg && cairo_image_surface_get_width(s->bg) == s->w && cairo_image_surface_get_height(s->bg) == s->h)
+		return s->bg;
+	cairo_surface_destroy(s->bg);
+	s->bg = NULL;
+	iw = cairo_image_surface_get_width(st.bg_img);
+	ih = cairo_image_surface_get_height(st.bg_img);
+	sc = s->w / iw > s->h / ih ? s->w / iw : s->h / ih;
+	out = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, s->w, s->h);
+	cr = cairo_create(out);
+	cairo_translate(cr, (s->w - iw * sc) / 2, (s->h - ih * sc) / 2);
+	cairo_scale(cr, sc, sc);
+	cairo_set_source_surface(cr, st.bg_img, 0, 0);
+	cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_BILINEAR);
+	cairo_paint(cr);
+	cairo_destroy(cr);
+	s->bg = out;
+	return out;
+}
+
 /* returns 1 while the open animation is still running */
 static int render(struct surf *s, cairo_t *cr)
 {
@@ -424,8 +466,16 @@ static int render(struct surf *s, cairo_t *cr)
 		return 0;
 	}
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-	cairo_set_source_rgba(cr, cfg.bg[0], cfg.bg[1], cfg.bg[2], cfg.bg[3] * fade);
-	cairo_paint(cr);
+	if (bg_image()) {
+		/* colors.background, when set, is a tint over the image */
+		cairo_set_source_surface(cr, bg_cover(s), 0, 0);
+		cairo_paint_with_alpha(cr, fade);
+		cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
+	}
+	if (!st.bg_img || cfg.bg_set) {
+		cairo_set_source_rgba(cr, cfg.bg[0], cfg.bg[1], cfg.bg[2], cfg.bg[3] * fade);
+		cairo_paint(cr);
+	}
 	cairo_set_operator(cr, CAIRO_OPERATOR_OVER);
 
 	for (int p = 0; p < s->nvis && s->rects && s->scaled; p++) {
@@ -649,6 +699,7 @@ static void surf_destroy(struct surf *s)
 	if (s->frame_cb)
 		wl_callback_destroy(s->frame_cb);
 	layout_free(s);
+	cairo_surface_destroy(s->bg);
 	buf_free(&s->buf[0]);
 	buf_free(&s->buf[1]);
 	zwlr_layer_surface_v1_destroy(s->layer);
@@ -990,6 +1041,7 @@ out:
 	}
 	st.ptr_surf = NULL;
 	st.target = NULL;
+	cairo_surface_destroy(st.bg_img);
 	/* print only after the overlay is gone, so a consumer that focuses windows does not race it */
 	if (st.multi)
 		wl_display_roundtrip(g->display);

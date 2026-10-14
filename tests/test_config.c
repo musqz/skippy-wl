@@ -84,6 +84,8 @@ int main(void)
 	CHECK(config_set(&c, "colors.background", "#12345") < 0);
 	CHECK(config_set(&c, "colors.background", "#12345g") < 0);
 
+	CHECK(config_set(&c, "background.image", "/tmp/bg.png") == 0 && !strcmp(c.bg_image, "/tmp/bg.png"));
+
 	/* a bind line replaces the defaults for that action */
 	CHECK(config_set(&c, "bind.close", "x, q") == 0);
 	CHECK(config_action(&c, XKB_KEY_x) == ACT_CLOSE && config_action(&c, XKB_KEY_q) == ACT_CLOSE);

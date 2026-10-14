@@ -11,6 +11,8 @@ cairo = dependency('cairo')
 xkbcommon = dependency('xkbcommon')
 pangocairo = dependency('pangocairo')
 librsvg = dependency('librsvg-2.0', version: '>=2.52')
+gdk_pixbuf = dependency('gdk-pixbuf-2.0')
+libheif = dependency('libheif')
 scanner = find_program('wayland-scanner')
 
 proto_xml = [
@@ -45,8 +47,8 @@ protocols_dep = declare_dependency(
 
 executable('skippy-wl',
   'src/main.c', 'src/capture.c', 'src/toplevels.c', 'src/globals.c', 'src/wlutil.c',
-  'src/layout.c', 'src/input.c', 'src/overlay.c', 'src/config.c', 'src/ipc.c', 'src/daemon.c', 'src/filter.c', 'src/icons.c',
-  dependencies: [protocols_dep, cairo, xkbcommon, pangocairo, librsvg],
+  'src/layout.c', 'src/input.c', 'src/overlay.c', 'src/config.c', 'src/ipc.c', 'src/daemon.c', 'src/filter.c', 'src/icons.c', 'src/bgimage.c',
+  dependencies: [protocols_dep, cairo, xkbcommon, pangocairo, librsvg, gdk_pixbuf, libheif],
   install: true)
 
 install_man('man/skippy-wl.1')
