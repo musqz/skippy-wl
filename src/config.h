@@ -40,6 +40,8 @@ struct config {
 void config_defaults(struct config *c);
 /* defaults, then ~/.config/skippy-wl/config; problems go to stderr and are skipped */
 void config_load(struct config *c);
+/* true if a [hide] rule matches the window */
+int config_hidden(const struct config *c, const char *app_id, const char *title, unsigned status);
 /* one setting as "section.key" (for example "layout.margin"); -1 if the key or value is invalid */
 int config_set(struct config *c, const char *key, const char *value);
 /* action bound to keysym, or -1 */

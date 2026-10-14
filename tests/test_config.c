@@ -89,6 +89,18 @@ int main(void)
 	CHECK(config_set(&c, "hide.app_id", "foo*, bar") == 0 && !strcmp(c.hide_app.app_id, "foo*, bar"));
 	CHECK(config_set(&c, "hide.title", "Picture-in-Picture") == 0 && !strcmp(c.hide_title.title, "Picture-in-Picture"));
 	CHECK(config_set(&c, "hide.status", "minimized") == 0 && !strcmp(c.hide_status.status, "minimized"));
+	/* any rule hides; an empty field hides nothing */
+	CHECK(config_hidden(&c, "foobar", "x", 0) && config_hidden(&c, "bar", "x", 0));
+	CHECK(config_hidden(&c, "other", "picture-in-picture", 0));
+	CHECK(config_hidden(&c, "other", "x", STATUS_MINIMIZED) && !config_hidden(&c, "other", "x", STATUS_MAXIMIZED));
+	CHECK(!config_hidden(&c, "other", "x", STATUS_MINIMIZED | STATUS_UNKNOWN));
+	CHECK(!config_hidden(&c, NULL, NULL, 0));
+	{
+		struct config e;
+
+		config_defaults(&e);
+		CHECK(!config_hidden(&e, "any", "thing", STATUS_MINIMIZED));
+	}
 	CHECK(config_set(&c, "hide.status", "bogus") < 0 && !strcmp(c.hide_status.status, "minimized"));
 
 	/* a bind line replaces the defaults for that action */

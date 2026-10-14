@@ -412,3 +412,10 @@ void config_load(struct config *c)
 	fclose(f);
 	load_theme(c);
 }
+
+int config_hidden(const struct config *c, const char *app_id, const char *title, unsigned status)
+{
+	return (c->hide_app.app_id[0] && filter_match(&c->hide_app, app_id, title, 0)) ||
+		(c->hide_title.title[0] && filter_match(&c->hide_title, app_id, title, 0)) ||
+		(c->hide_status.status[0] && filter_match(&c->hide_status, app_id, title, status));
+}
