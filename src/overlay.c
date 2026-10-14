@@ -1107,7 +1107,7 @@ void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
 				st.ptr_surf = s;
 		set_target(st.ptr_surf);
 	}
-	/* the parked cursor's enter event must not replace the --next/--prev selection */
+	/* the parked cursor's enter event must not replace the --next/--prev or multi-select start */
 	if ((st.dir || st.multi) && !st.ptr_seen) {
 		st.ptr_seen = 1;
 		ptr_x = x;
@@ -1225,8 +1225,8 @@ out:
 	if (st.multi && !rc) {
 		int any = 0;
 
-		/* in the order the windows were toggled */
-		for (int seq = 1; seq <= st.pick_seq; seq++)
+		/* toggle order; a cancel prints nothing */
+		for (int seq = 1; st.done && seq <= st.pick_seq; seq++)
 			for (int i = 0; i < st.n; i++) {
 				if (st.tiles[i].picked != seq || !tile_matches(&st.tiles[i]))
 					continue;

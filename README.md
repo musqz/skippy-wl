@@ -31,9 +31,9 @@ Type `/` (or any unbound key) to filter the tiles by app id or title. Escape cle
 
 Hide windows for good with `[hide]` in the config (`app_id`, `title`, `status`; same syntax as the filters). Hidden windows are also skipped by `--switch`.
 
-Pick several windows with `skippy-wl --show --multi-select`. It prints their identifiers, one per line.
+Pick several windows with `skippy-wl --show --multi-select`. It prints their identifiers, one per line, in the order you toggled them.
 
-Click or press Space to toggle a window, Enter to confirm, Escape to cancel (exit status 1, no output).
+The focused window starts selected. Click or press Space to toggle a window, Enter to confirm, Escape to cancel (exit status 1, no output).
 
 Note: it runs without the daemon and does not focus, close or minimize anything.
 
