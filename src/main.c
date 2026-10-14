@@ -238,6 +238,14 @@ int main(int argc, char **argv)
 				fprintf(stderr, "skippy-wl: %s: tabs and line breaks are not allowed\n", argv[i]);
 				return 1;
 			}
+			if (!strcmp(key, "desk")) {
+				/* skippy-xd option: every window is shown anyway */
+				if (strcmp(val, "-1")) {
+					fprintf(stderr, "skippy-wl: only --desk -1 (all windows) is supported\n");
+					return 1;
+				}
+				continue;
+			}
 			if (filter_set(&filter, key, val) < 0) {
 				fprintf(stderr, "skippy-wl: invalid %s: unknown option, unknown status name or value too long\n",
 					argv[i]);

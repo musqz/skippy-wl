@@ -143,6 +143,9 @@ Examples:
 .IR "\-\-status minimized" ,
 .IR "\-\-app\-id kitty \-\-status '!minimized'" .
 .PP
+.B \-\-desk \-1
+is accepted for skippy-xd binds and does nothing, because every window is shown anyway. Any other desk value is an error.
+.PP
 A window whose state is not known (the compositor gave no matching handle) never matches a
 .B \-\-status
 filter. Nothing is shown if no window matches. Quote patterns so the shell does not expand them.
