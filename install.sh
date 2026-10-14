@@ -11,6 +11,7 @@ FILES=(
 	"$PREFIX/bin/skippy-wl"
 	"$PREFIX/share/man/man1/skippy-wl.1"
 	"$PREFIX/share/skippy-wl/skippy-wl.conf"
+	"$PREFIX/share/systemd/user/skippy-wl.service"
 )
 
 uninstall() {

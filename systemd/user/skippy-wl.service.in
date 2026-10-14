@@ -1,0 +1,9 @@
+[Unit]
+Description=skippy-wl window overview daemon
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=@bindir@/skippy-wl --daemon
+Restart=on-failure
+RestartSec=2
