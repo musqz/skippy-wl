@@ -102,7 +102,7 @@ int daemon_run(struct globals *g)
 	listen_fd = ipc_listen();
 	if (listen_fd == -2) {
 		fprintf(stderr, "skippy-wl: daemon already running\n");
-		return 1;
+		return EXIT_ALREADY_RUNNING;
 	}
 	if (listen_fd < 0) {
 		fprintf(stderr, "skippy-wl: cannot create $XDG_RUNTIME_DIR/skippy-wl.sock\n");
