@@ -12,6 +12,8 @@ skippy-wl \- window overview for labwc
 .IR LIST ]
 .RB [ \-\-status
 .IR LIST ]
+.RB [ \-\-desk
+.IR LIST ]
 .RB [ \-\-next | \-\-prev ]
 .br
 .B skippy-wl \-\-show \-\-multi\-select
@@ -21,6 +23,8 @@ skippy-wl \- window overview for labwc
 .IR LIST ]
 .RB [ \-\-status
 .IR LIST ]
+.RB [ \-\-desk
+.IR LIST ]
 .br
 .B skippy-wl \-\-switch
 .RB [ \-\-app\-id
@@ -28,6 +32,8 @@ skippy-wl \- window overview for labwc
 .RB [ \-\-title
 .IR LIST ]
 .RB [ \-\-status
+.IR LIST ]
+.RB [ \-\-desk
 .IR LIST ]
 .br
 .B skippy-wl \-\-activate
@@ -142,6 +148,11 @@ Examples:
 .IR "\-\-app\-id '!firefox'" ,
 .IR "\-\-status minimized" ,
 .IR "\-\-app\-id kitty \-\-status '!minimized'" .
+.PP
+.BI \-\-desk " LIST"
+is accepted for skippy-xd binds: \-1 or desk numbers such as
+.IR 1,2,3,4 .
+It does nothing, because labwc does not say which workspace a window is on, so every window is shown. Anything else is an error.
 .PP
 A window whose state is not known (the compositor gave no matching handle) never matches a
 .B \-\-status
