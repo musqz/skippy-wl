@@ -73,7 +73,7 @@ Logs: `journalctl --user -u skippy-wl`. A second daemon exits with status 3 ("da
 Copy the template and edit it:
 
     mkdir -p ~/.config/skippy-wl
-    cp "${PREFIX:-$HOME/.local}/share/skippy-wl/skippy-wl.conf" ~/.config/skippy-wl/config
+    cp "${PREFIX:-$HOME/.local}/share/skippy-wl/skippy-wl.rc" ~/.config/skippy-wl/skippy-wl.rc
 
 To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc` under `[colors]`.
 

@@ -10,7 +10,7 @@ BUILD="${BUILD_DIR:-$SRC/build}"
 FILES=(
 	"$PREFIX/bin/skippy-wl"
 	"$PREFIX/share/man/man1/skippy-wl.1"
-	"$PREFIX/share/skippy-wl/skippy-wl.conf"
+	"$PREFIX/share/skippy-wl/skippy-wl.rc"
 	"$PREFIX/share/systemd/user/skippy-wl.service"
 )
 

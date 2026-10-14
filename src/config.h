@@ -38,7 +38,7 @@ struct config {
 };
 
 void config_defaults(struct config *c);
-/* defaults, then ~/.config/skippy-wl/config; problems go to stderr and are skipped */
+/* defaults, then ~/.config/skippy-wl/skippy-wl.rc; problems go to stderr and are skipped */
 void config_load(struct config *c);
 /* true if a [hide] rule matches the window */
 int config_hidden(const struct config *c, const char *app_id, const char *title, unsigned status);

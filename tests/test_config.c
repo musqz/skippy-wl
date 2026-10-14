@@ -131,7 +131,7 @@ int main(void)
 
 		CHECK(mkdtemp(dir) != NULL);
 		snprintf(sub, sizeof(sub), "%s/skippy-wl", dir);
-		snprintf(path, sizeof(path), "%s/config", sub);
+		snprintf(path, sizeof(path), "%s/skippy-wl.rc", sub);
 		CHECK(mkdir(sub, 0700) == 0);
 		f = fopen(path, "w");
 		CHECK(f != NULL);
@@ -179,7 +179,7 @@ int main(void)
 		CHECK(mkdtemp(dir) != NULL);
 		snprintf(theme, sizeof(theme), "%s/theme", dir);
 		snprintf(cfgdir, sizeof(cfgdir), "%s/skippy-wl", dir);
-		snprintf(cfg, sizeof(cfg), "%s/config", cfgdir);
+		snprintf(cfg, sizeof(cfg), "%s/skippy-wl.rc", cfgdir);
 		CHECK(mkdir(cfgdir, 0700) == 0);
 		f = fopen(theme, "w");
 		CHECK(f != NULL);

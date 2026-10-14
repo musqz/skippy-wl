@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
 
 #include "config.h"
@@ -342,14 +343,21 @@ void config_load(struct config *c)
 
 	config_defaults(c);
 	if (xdg && *xdg)
-		snprintf(path, sizeof(path), "%s/skippy-wl/config", xdg);
+		snprintf(path, sizeof(path), "%s/skippy-wl/skippy-wl.rc", xdg);
 	else if (home)
-		snprintf(path, sizeof(path), "%s/.config/skippy-wl/config", home);
+		snprintf(path, sizeof(path), "%s/.config/skippy-wl/skippy-wl.rc", home);
 	else
 		return;
 	f = fopen(path, "r");
-	if (!f)
+	if (!f) {
+		char old[PATH_MAX];
+
+		/* the file used to be called "config" */
+		snprintf(old, sizeof(old), "%.*sconfig", (int)(strlen(path) - strlen("skippy-wl.rc")), path);
+		if (!access(old, F_OK))
+			fprintf(stderr, "skippy-wl: %s is no longer read: rename it to skippy-wl.rc\n", old);
 		return;
+	}
 	while (fgets(line, sizeof(line), f)) {
 		int too_long = !strchr(line, '\n') && !feof(f), cut = too_long;
 		char *s = trim(line), *eq;
