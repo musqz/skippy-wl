@@ -196,13 +196,17 @@ int config_set(struct config *c, const char *key, const char *value)
 	}
 	if (!strcmp(key, "background.image")) {
 		const char *home = getenv("HOME");
+		char path[sizeof(c->bg_image)];
 		int n;
 
 		if (value[0] == '~' && value[1] == '/' && home)
-			n = snprintf(c->bg_image, sizeof(c->bg_image), "%s%s", home, value + 1);
+			n = snprintf(path, sizeof(path), "%s%s", home, value + 1);
 		else
-			n = snprintf(c->bg_image, sizeof(c->bg_image), "%s", value);
-		return n >= (int)sizeof(c->bg_image) ? -1 : 0;
+			n = snprintf(path, sizeof(path), "%s", value);
+		if (n >= (int)sizeof(path))
+			return -1;
+		memcpy(c->bg_image, path, sizeof(path));
+		return 0;
 	}
 	if (!strcmp(key, "colors.theme_file")) {
 		if (strlen(value) >= sizeof(c->theme_file))

@@ -14,8 +14,10 @@ static cairo_surface_t *from_rgb(const uint8_t *src, int stride, int w, int h, i
 	uint8_t *dst;
 	int dstride;
 
-	if (cairo_surface_status(s))
-		return s;
+	if (cairo_surface_status(s)) {
+		cairo_surface_destroy(s);
+		return NULL;
+	}
 	dst = cairo_image_surface_get_data(s);
 	dstride = cairo_image_surface_get_stride(s);
 	for (int y = 0; y < h; y++) {
@@ -77,14 +79,11 @@ cairo_surface_t *bgimage_load(const char *path)
 {
 	const char *ext = strrchr(path, '.');
 	cairo_surface_t *s;
+	int heif = ext && (!strcasecmp(ext, ".avif") || !strcasecmp(ext, ".heic") || !strcasecmp(ext, ".heif"));
 
-	if (ext && (!strcasecmp(ext, ".avif") || !strcasecmp(ext, ".heic") || !strcasecmp(ext, ".heif")))
-		s = load_heif(path);
-	else
-		s = load_pixbuf(path);
-	if (s && cairo_surface_status(s)) {
-		cairo_surface_destroy(s);
-		s = NULL;
-	}
+	/* a wrong or missing extension: try the other decoder */
+	s = heif ? load_heif(path) : load_pixbuf(path);
+	if (!s)
+		s = heif ? load_pixbuf(path) : load_heif(path);
 	return s;
 }

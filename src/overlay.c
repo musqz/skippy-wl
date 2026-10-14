@@ -68,7 +68,8 @@ static struct {
 	struct tile *tiles;
 	int n;
 	struct surf *surfs;
-	cairo_surface_t *bg_img; /* background.image as loaded; NULL = none */
+	cairo_surface_t *bg_img; /* background.image as loaded; NULL = none or not tried yet */
+	int bg_tried;
 	int sel;
 	struct surf *ptr_surf;
 	struct surf *target; /* monitors.mode = pointer: the output that shows every window */
@@ -413,6 +414,18 @@ static double anim_progress(void)
 	return 1 - t * t * t;
 }
 
+/* loaded on the first draw, so a quick tap that never draws does not pay for the decode */
+static cairo_surface_t *bg_image(void)
+{
+	if (!st.bg_tried && cfg.bg_image[0]) {
+		st.bg_tried = 1;
+		st.bg_img = bgimage_load(cfg.bg_image);
+		if (!st.bg_img)
+			fprintf(stderr, "skippy-wl: cannot read background.image %s\n", cfg.bg_image);
+	}
+	return st.bg_img;
+}
+
 /* scale and center the image to cover the surface, once per surface size */
 static cairo_surface_t *bg_cover(struct surf *s)
 {
@@ -453,7 +466,7 @@ static int render(struct surf *s, cairo_t *cr)
 		return 0;
 	}
 	cairo_set_operator(cr, CAIRO_OPERATOR_SOURCE);
-	if (st.bg_img) {
+	if (bg_image()) {
 		/* colors.background, when set, is a tint over the image */
 		cairo_set_source_surface(cr, bg_cover(s), 0, 0);
 		cairo_paint_with_alpha(cr, fade);
@@ -984,11 +997,6 @@ int overlay_run(struct globals *g, const struct filter *filter, int dir, int mul
 	st.multi = multi;
 	config_load(&cfg);
 	fonts_init();
-	if (cfg.bg_image[0]) {
-		st.bg_img = bgimage_load(cfg.bg_image);
-		if (!st.bg_img)
-			fprintf(stderr, "skippy-wl: cannot read background.image %s\n", cfg.bg_image);
-	}
 	active = 1;
 	toplevels_set_closed_cb(on_toplevel_closed);
 	if (tiles_build() < 0) {
