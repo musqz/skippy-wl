@@ -92,9 +92,16 @@ static void k_keymap(void *d, struct wl_keyboard *k, uint32_t format, int32_t fd
 static void k_key(void *d, struct wl_keyboard *k, uint32_t serial, uint32_t time,
 		uint32_t key, uint32_t state)
 {
+	char text[8] = "";
+
 	(void)d; (void)k; (void)serial; (void)time;
-	if (state == WL_KEYBOARD_KEY_STATE_PRESSED && xkb_state)
-		overlay_key(xkb_state_key_get_one_sym(xkb_state, key + 8));
+	if (state != WL_KEYBOARD_KEY_STATE_PRESSED || !xkb_state)
+		return;
+	if (!xkb_state_mod_name_is_active(xkb_state, XKB_MOD_NAME_CTRL, XKB_STATE_MODS_DEPRESSED) &&
+			!xkb_state_mod_name_is_active(xkb_state, XKB_MOD_NAME_ALT, XKB_STATE_MODS_DEPRESSED) &&
+			!xkb_state_mod_name_is_active(xkb_state, XKB_MOD_NAME_LOGO, XKB_STATE_MODS_DEPRESSED))
+		xkb_state_key_get_utf8(xkb_state, key + 8, text, sizeof(text));
+	overlay_key(xkb_state_key_get_one_sym(xkb_state, key + 8), text);
 }
 
 static void k_modifiers(void *d, struct wl_keyboard *k, uint32_t serial, uint32_t depressed,

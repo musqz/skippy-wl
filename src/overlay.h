@@ -32,7 +32,8 @@ void overlay_cancel(void);
 int overlay_active(void);
 
 /* input events, called from input.c */
-void overlay_key(uint32_t keysym);
+/* text: the key's UTF-8 as typed, "" when it has none or Ctrl/Alt/Super is held */
+void overlay_key(uint32_t keysym, const char *text);
 void overlay_modifiers(uint32_t depressed);
 void overlay_pointer_motion(struct wl_surface *surface, double x, double y);
 void overlay_pointer_leave(void);
