@@ -313,6 +313,9 @@ Control socket of the daemon.
 .TP
 .I PREFIX/share/skippy-wl/skippy-wl.rc
 Config template.
+.TP
+.I PREFIX/share/systemd/user/skippy-wl.service
+User service for the daemon.
 .SH LABWC
 In
 .IR ~/.config/labwc/autostart :
@@ -329,6 +332,34 @@ In
   <action name="Execute" command="skippy\-wl \-\-toggle"/>
 </keybind>
 .fi
+.SH SYSTEMD
+Remove the autostart line, then add to
+.IR ~/.config/labwc/autostart ,
+in this order:
+.PP
+.nf
+systemctl \-\-user import\-environment WAYLAND_DISPLAY
+systemctl \-\-user start skippy\-wl.service
+.fi
+.PP
+Do not run
+.B systemctl \-\-user enable
+on it.
+.PP
+Stop a running daemon first:
+.BR "skippy\-wl \-\-quit" .
+.PP
+After an upgrade:
+.BR "systemctl \-\-user daemon\-reload" ,
+then
+.BR "systemctl \-\-user restart skippy\-wl.service" .
+.PP
+Before
+.BR "install.sh \-\-uninstall" :
+.BR "systemctl \-\-user stop skippy\-wl.service" .
+.PP
+Logs:
+.BR "journalctl \-\-user \-u skippy\-wl" .
 .SH EXIT STATUS
 0 on success, 1 on any error, 3 if \fB\-\-daemon\fR finds another daemon running.
 .SH SEE ALSO
