@@ -12,6 +12,15 @@ Expose tool like skippy-xd but for wayland
 Run `./install.sh`. It installs to `~/.local`; set `PREFIX=/usr SUDO=sudo` for a system install.
 Remove with `./install.sh --uninstall`.
 
+### Arch package
+Local build from the committed `HEAD` of this checkout:
+
+    ./install.sh --uninstall   # same PREFIX/SUDO as the install
+    cd packaging && makepkg -f
+    sudo pacman -U skippy-wl-git-*.pkg.tar.zst
+
+The unit installs to `/usr/share/systemd/user/`. Restart it with `systemctl --user daemon-reload && systemctl --user restart skippy-wl.service`.
+
 ## Usage
 Start the daemon, then toggle the overlay:
 

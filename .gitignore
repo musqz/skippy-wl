@@ -17,6 +17,7 @@ __pycache__/
 # arch packaging
 /pkg/
 /packaging/src/
+/packaging/skippy-wl-git/
 /packaging/pkg/
 *.pkg.tar.zst
 *.pkg.tar.xz
