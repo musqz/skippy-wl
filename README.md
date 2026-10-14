@@ -88,6 +88,11 @@ To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/
 
 Sections: `[layout]` (`margin`, `spacing`, `label_height`, `label`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`, `hold`), `[icons]` (`enabled`, `size`, `theme`), `[animation]` (`enabled`, `duration`), `[background]` (`image`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
 
+## Limits
+No per-workspace pages and no `--desk` option: labwc does not say which workspace a window is on, so windows from all workspaces are shown together.
+
+Both need a labwc protocol that reports a window's workspace.
+
 ## Development
     meson setup build && ninja -C build && meson test -C build
 
