@@ -144,6 +144,8 @@ int config_set(struct config *c, const char *key, const char *value)
 		return filter_set(&c->hide_app, "app-id", value);
 	if (!strcmp(key, "hide.title"))
 		return filter_set(&c->hide_title, "title", value);
+	if (!strcmp(key, "hide.status"))
+		return filter_set(&c->hide_status, "status", value);
 	if (!strcmp(key, "animation.duration"))
 		return parse_int(value, 0, 1000, &c->anim_ms);
 	if (!strcmp(key, "animation.enabled"))

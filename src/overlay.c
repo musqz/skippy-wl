@@ -128,7 +128,8 @@ static int caps_done(void *arg)
 static int hidden(const struct toplevel *t)
 {
 	return (cfg.hide_app.app_id[0] && filter_match(&cfg.hide_app, t->app_id, t->title, 0)) ||
-		(cfg.hide_title.title[0] && filter_match(&cfg.hide_title, t->app_id, t->title, 0));
+		(cfg.hide_title.title[0] && filter_match(&cfg.hide_title, t->app_id, t->title, 0)) ||
+		(cfg.hide_status.status[0] && filter_match(&cfg.hide_status, t->app_id, t->title, toplevel_status(t)));
 }
 
 static int wanted(const struct toplevel *t)

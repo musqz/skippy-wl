@@ -88,7 +88,8 @@ int main(void)
 
 	CHECK(config_set(&c, "hide.app_id", "foo*, bar") == 0 && !strcmp(c.hide_app.app_id, "foo*, bar"));
 	CHECK(config_set(&c, "hide.title", "Picture-in-Picture") == 0 && !strcmp(c.hide_title.title, "Picture-in-Picture"));
-	CHECK(config_set(&c, "hide.status", "minimized") < 0);
+	CHECK(config_set(&c, "hide.status", "minimized") == 0 && !strcmp(c.hide_status.status, "minimized"));
+	CHECK(config_set(&c, "hide.status", "bogus") < 0 && !strcmp(c.hide_status.status, "minimized"));
 
 	/* a bind line replaces the defaults for that action */
 	CHECK(config_set(&c, "bind.close", "x, q") == 0);

@@ -22,7 +22,7 @@ Other commands: `--show`, `--switch` (focus the previous window, no overlay), `-
 
 Type `/` (or any unbound key) to filter the tiles by app id or title. Escape clears the filter, a second Escape closes the overlay.
 
-Hide windows for good with `[hide]` in the config (`app_id`, `title`; same globs as the filters). Hidden windows are also skipped by `--switch`.
+Hide windows for good with `[hide]` in the config (`app_id`, `title`, `status`; same syntax as the filters). Hidden windows are also skipped by `--switch`.
 
 Pick several windows with `skippy-wl --show --multi-select`. It prints their identifiers, one per line.
 
