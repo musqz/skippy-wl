@@ -256,8 +256,15 @@ Milliseconds the open animation takes, 0 to 1000. 0 shows the overlay at once. D
 Pango font description for titles. Default
 .IR "Sans 11" .
 .TP
+.B background.image
+PNG, JPEG or AVIF file drawn behind the tiles, scaled to fill each monitor. A leading
+.B ~/
+is expanded. Default none.
+.TP
 .B colors.background
-Overlay color as #RRGGBB or #RRGGBBAA. Default #000000ff.
+Overlay color as #RRGGBB or #RRGGBBAA. Default #000000ff. With an alpha below ff the desktop shows through; with
+.B background.image
+it tints the image when set, and is not drawn when unset. Use #00000000 for a fully transparent overlay.
 .TP
 .B colors.highlight
 Selection color as #RRGGBB or #RRGGBBAA. Default #5999ff.
