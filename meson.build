@@ -53,6 +53,9 @@ executable('skippy-wl',
 
 install_man('man/skippy-wl.1')
 install_data('configs/skippy-wl.conf', install_dir: get_option('datadir') / 'skippy-wl')
+configure_file(input: 'systemd/user/skippy-wl.service.in', output: 'skippy-wl.service',
+  configuration: {'bindir': get_option('prefix') / get_option('bindir')},
+  install_dir: get_option('datadir') / 'systemd/user')
 
 executable('skippy-wl-probe', 'src/probe.c',
   dependencies: [protocols_dep])

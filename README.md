@@ -57,6 +57,16 @@ Or switch like Alt-Tab: hold the modifier, tap Tab to cycle through the windows,
       <action name="Execute" command="skippy-wl --show --prev"/>
     </keybind>
 
+### systemd
+Instead of the `skippy-wl --daemon &` autostart line (remove it), run the daemon as a user service. Add to `~/.config/labwc/autostart`:
+
+    systemctl --user import-environment WAYLAND_DISPLAY
+    systemctl --user start skippy-wl.service
+
+After an install or upgrade: `systemctl --user daemon-reload && systemctl --user restart skippy-wl.service`. Before `./install.sh --uninstall`: `systemctl --user stop skippy-wl.service`.
+
+Logs: `journalctl --user -u skippy-wl`.
+
 ## Config
 Copy the template and edit it:
 
