@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <cairo.h>
+#include <glib.h>
 #include <linux/input-event-codes.h>
 #include <pango/pangocairo.h>
 #include <stdio.h>
@@ -30,6 +31,7 @@
 struct tile {
 	struct toplevel *t; /* valid until its closed event removes this tile */
 	char *app_id, *title;
+	char *app_id_cf, *title_cf; /* case-folded, for the type-to-filter match */
 	struct capture *cap;
 	cairo_surface_t *full; /* wraps cap->data, NULL when the capture failed */
 	struct size size;
@@ -88,6 +90,7 @@ static struct {
 	uint32_t held; /* modifiers down when the keyboard got focus */
 	const struct filter *filter;
 	char query[96]; /* typed filter: tiles whose app id or title lacks it are hidden */
+	char *query_cf; /* query, case-folded */
 	int qlen, filtering;
 } st;
 
@@ -142,7 +145,13 @@ static int wanted(const struct toplevel *t)
 /* case-insensitive substring of the app id or title; the empty query matches all */
 static int tile_matches(const struct tile *tl)
 {
-	return !st.qlen || strcasestr(tl->title, st.query) || strcasestr(tl->app_id, st.query);
+	return !st.qlen || strstr(tl->title_cf, st.query_cf) || strstr(tl->app_id_cf, st.query_cf);
+}
+
+/* Unicode case folding; text that is not valid UTF-8 only gets its ASCII letters folded */
+static char *fold(const char *s)
+{
+	return g_utf8_validate(s, -1, NULL) ? g_utf8_casefold(s, -1) : g_ascii_strdown(s, -1);
 }
 
 static int any_match(void)
@@ -194,6 +203,8 @@ static int tiles_build(void)
 			free(order);
 			return -1;
 		}
+		tl->app_id_cf = fold(tl->app_id);
+		tl->title_cf = fold(tl->title);
 	}
 	free(order);
 	return 0;
@@ -237,6 +248,8 @@ static void tile_free(struct tile *tl)
 		capture_destroy(tl->cap);
 	free(tl->app_id);
 	free(tl->title);
+	g_free(tl->app_id_cf);
+	g_free(tl->title_cf);
 }
 
 /* a window closed while the overlay is up: drop its tile and re-flow */
@@ -882,6 +895,9 @@ static void refilter(void)
 {
 	struct surf *a;
 
+	g_free(st.query_cf);
+	st.query_cf = fold(st.query);
+
 	for (struct surf *s = st.surfs; s; s = s->next)
 		if (s->w)
 			relayout(s);
@@ -1212,6 +1228,8 @@ out:
 		else if (!st.done || !any)
 			rc = 1;
 	}
+	g_free(st.query_cf);
+	st.query_cf = NULL;
 	if (st.pick) {
 		/* focus the pick only after the overlay is gone, or the compositor hands focus back */
 		wl_display_roundtrip(g->display);
