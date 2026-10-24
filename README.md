@@ -1,6 +1,3 @@
-> **This repository has moved to Codeberg: https://codeberg.org/linux-bird/skippy-wl**
-> It is archived here. Please use Codeberg for issues and pull requests.
-
 # skippy-wl
 Expose tool like skippy-xd but for wayland
 
