@@ -510,39 +510,27 @@ static void tile_path(cairo_t *cr, const struct rect *r, double grow)
 		cfg.tile_radius ? cfg.tile_radius + grow : 0);
 }
 
-/* white or black, whichever contrasts more with c (WCAG relative luminance) */
-static const double *contrast_text(const double *c)
-{
-	static const double white[4] = {1, 1, 1, 1}, black[4] = {0, 0, 0, 1};
-	double lin[3], lum;
-
-	for (int i = 0; i < 3; i++)
-		lin[i] = c[i] <= 0.03928 ? c[i] / 12.92 : pow((c[i] + 0.055) / 1.055, 2.4);
-	lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
-	return lum > 0.179 ? black : white;
-}
-
 static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int selected)
 {
 	const struct label_cfg *l = &cfg.lbl;
 	const double *bg = selected && l->bg_hl[3] >= 0 ? l->bg_hl : l->bg;
-	const double *fg = l->text;
+	const double *border = l->border;
 	double k = l->opacity / 255.0, dim = selected ? 1.0 : 0.7;
 	int bw, bh, pad = l->radius / 2 > 4 ? l->radius / 2 : 4, tw, th, x, y, lw;
 	PangoLayout *pl;
 
-	/* no label colors configured: the label is filled like its tile frame, with readable text */
+	/* no label colors configured: a dark tint of the tile frame color with the frame color as outline */
 	if (!l->bg_set) {
-		static double fill[4];
+		static double fill[4], edge[4];
 		const double *frame = selected ? cfg.highlight : cfg.border;
 
-		fill[0] = frame[0];
-		fill[1] = frame[1];
-		fill[2] = frame[2];
-		fill[3] = k > 0 ? 1.0 / k : 0; /* opaque whatever the opacity, so the text contrast holds */
+		for (int i = 0; i < 3; i++) {
+			fill[i] = 0.05 + 0.25 * frame[i];
+			edge[i] = frame[i];
+		}
+		fill[3] = edge[3] = k > 0 ? 1.0 / k : 0; /* opaque whatever the opacity */
 		bg = fill;
-		if (!l->text_set)
-			fg = contrast_text(bg);
+		border = edge;
 	}
 	label_rect(r, &x, &y, &bw, &bh);
 	if (bg[3] > 0) {
@@ -550,8 +538,8 @@ static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int 
 		rounded_rect(cr, x, y, bw, bh, l->radius);
 		cairo_fill(cr);
 	}
-	if (l->border[3] > 0) {
-		cairo_set_source_rgba(cr, l->border[0], l->border[1], l->border[2], l->border[3] * k);
+	if (border[3] > 0) {
+		cairo_set_source_rgba(cr, border[0], border[1], border[2], border[3] * k);
 		cairo_set_line_width(cr, 1);
 		rounded_rect(cr, x + 0.5, y + 0.5, bw - 1, bh - 1, l->radius - 0.5);
 		cairo_stroke(cr);
@@ -573,7 +561,7 @@ static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int 
 		cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 		cairo_stroke(cr);
 	}
-	cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3] * dim);
+	cairo_set_source_rgba(cr, l->text[0], l->text[1], l->text[2], l->text[3] * dim);
 	cairo_move_to(cr, x + pad, y + (bh - th) / 2.0);
 	pango_cairo_show_layout(cr, pl);
 	g_object_unref(pl);

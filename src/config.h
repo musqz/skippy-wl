@@ -29,7 +29,7 @@ struct label_cfg {
 	int radius; /* corner radius of the box in pixels */
 	int opacity; /* 0-255, scales border and background */
 	double text[4], outline[4], border[4], bg[4], bg_hl[4]; /* r, g, b, a in 0..1 */
-	int bg_set, text_set; /* set explicitly: otherwise the selected label follows the highlight color */
+	int bg_set; /* set explicitly: otherwise the label is tinted from its tile frame color */
 	char font[96]; /* Pango description */
 };
 enum monitor_mode { MON_EACH, MON_POINTER };
