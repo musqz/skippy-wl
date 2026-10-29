@@ -84,7 +84,7 @@ Copy the template and edit it:
 
 To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/openbox-3/themerc` under `[colors]`.
 
-Sections: `[layout]` (`margin`, `spacing`), `[label]` (`show`, `option`, `position`, `offsetX`, `offsetY`, `height`, `width`, `radius`, `border`, `background`, `backgroundHighlight`, `opacity`, `text`, `textOutline`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`, `hold`), `[icons]` (`enabled`, `size`, `theme`), `[animation]` (`enabled`, `duration`), `[background]` (`image`, `image_cmd`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
+Sections: `[layout]` (`margin`, `spacing`), `[label]` (`show`, `option`, `position`, `offsetX`, `offsetY`, `height`, `width`, `radius`, `border`, `background`, `backgroundHighlight`, `opacity`, `text`, `textOutline`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`, `hold`), `[icons]` (`enabled`, `size`, `theme`), `[animation]` (`enabled`, `duration`), `[background]` (`image`, `image_cmd`, `panels`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
 
 ## Limits
 No per-workspace pages and no `--desk` option: labwc does not say which workspace a window is on, so windows from all workspaces are shown together.

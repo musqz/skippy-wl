@@ -299,6 +299,15 @@ int config_set(struct config *c, const char *key, const char *value)
 		c->border_set = 1;
 		return 0;
 	}
+	if (!strcmp(key, "background.panels")) {
+		if (!strcmp(value, "show"))
+			c->panels_show = 1;
+		else if (!strcmp(value, "hide"))
+			c->panels_show = 0;
+		else
+			return -1;
+		return 0;
+	}
 	if (!strcmp(key, "background.image")) {
 		const char *home = getenv("HOME");
 		char path[sizeof(c->bg_image)];

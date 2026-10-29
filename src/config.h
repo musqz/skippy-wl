@@ -45,6 +45,7 @@ struct config {
 	int switch_hold; /* ms of pause after which releasing the modifiers leaves the overlay open; 0 = always pick */
 	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
 	int bg_set, highlight_set, border_set; /* set explicitly: a theme file must not override them */
+	int panels_show; /* leave room for panels and docks instead of covering them */
 	char bg_image[256]; /* PNG, JPEG, AVIF, HEIC or HEIF shown behind the tiles; empty = none */
 	char bg_image_cmd[256]; /* shell command that prints the image path, run at each open; wins over bg_image */
 	char theme_file[256]; /* labwc themerc style file the border colors are read from */

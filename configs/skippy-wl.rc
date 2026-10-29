@@ -72,6 +72,10 @@
 ## Shell command that prints the image path, run each time the overlay opens. Falls back to image if it fails or takes over 1 s.
 #image_cmd = noctalia msg wallpaper-get
 
+## show: leave room for panels and docks that reserve space; the image is scaled to the smaller area and the panels stay clickable.
+## hide: the overlay covers them.
+#panels = hide
+
 [colors]
 ## #RRGGBB or #RRGGBBAA. With an image, setting it tints the image; leave it unset for the image alone.
 #background = #000000ff
