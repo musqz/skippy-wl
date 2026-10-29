@@ -51,6 +51,8 @@ void config_defaults(struct config *c)
 	c->spacing = 28;
 	c->icon = 1;
 	c->icon_size = 48;
+	c->icon_h = ANCHOR_H_RIGHT;
+	c->icon_v = ANCHOR_V_BOTTOM;
 	snprintf(c->icon_theme, sizeof(c->icon_theme), "hicolor");
 	c->anim = 1;
 	c->anim_ms = 150;
@@ -186,6 +188,18 @@ static const struct { const char *name; int h, v; } anchors[] = {
 	{ "bottom-right", ANCHOR_H_RIGHT, ANCHOR_V_BOTTOM },
 };
 
+/* "below" only fits a label: it sits outside the tile */
+static int parse_anchor(const char *value, int allow_below, int *h, int *v)
+{
+	for (size_t i = 0; i < sizeof(anchors) / sizeof(anchors[0]); i++)
+		if (!strcmp(value, anchors[i].name) && (allow_below || anchors[i].v != ANCHOR_V_BELOW)) {
+			*h = anchors[i].h;
+			*v = anchors[i].v;
+			return 0;
+		}
+	return -1;
+}
+
 /* key is the part after "label." */
 static int set_label(struct label_cfg *l, const char *key, const char *value)
 {
@@ -202,15 +216,8 @@ static int set_label(struct label_cfg *l, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(key, "position")) {
-		for (size_t i = 0; i < sizeof(anchors) / sizeof(anchors[0]); i++)
-			if (!strcmp(value, anchors[i].name)) {
-				l->anchor_h = anchors[i].h;
-				l->anchor_v = anchors[i].v;
-				return 0;
-			}
-		return -1;
-	}
+	if (!strcmp(key, "position"))
+		return parse_anchor(value, 1, &l->anchor_h, &l->anchor_v);
 	if (!strcmp(key, "offsetX"))
 		return parse_int(value, -4000, 4000, &l->offset_x);
 	if (!strcmp(key, "offsetY"))
@@ -246,6 +253,8 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 0, 1000, &c->spacing);
 	if (!strcmp(key, "icons.size"))
 		return parse_int(value, 16, 256, &c->icon_size);
+	if (!strcmp(key, "icons.position"))
+		return parse_anchor(value, 0, &c->icon_h, &c->icon_v);
 	if (!strcmp(key, "icons.enabled"))
 		return parse_bool(value, &c->icon);
 	if (!strcmp(key, "icons.theme")) {

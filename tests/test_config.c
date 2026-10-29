@@ -49,6 +49,11 @@ int main(void)
 	CHECK(config_set(&c, "icons.enabled", "false") == 0 && c.icon == 0);
 	CHECK(config_set(&c, "icons.enabled", "1") < 0);
 	CHECK(config_set(&c, "icons.size", "64") == 0 && c.icon_size == 64);
+	CHECK(c.icon_h == ANCHOR_H_RIGHT && c.icon_v == ANCHOR_V_BOTTOM);
+	CHECK(config_set(&c, "icons.position", "top-left") == 0 && c.icon_h == ANCHOR_H_LEFT && c.icon_v == ANCHOR_V_TOP);
+	CHECK(config_set(&c, "icons.position", "center") == 0 && c.icon_h == ANCHOR_H_CENTER && c.icon_v == ANCHOR_V_MIDDLE);
+	CHECK(config_set(&c, "icons.position", "below") < 0 && config_set(&c, "icons.position", "middle") < 0 &&
+		c.icon_v == ANCHOR_V_MIDDLE);
 	CHECK(config_set(&c, "icons.size", "8") < 0);
 	CHECK(config_set(&c, "icons.theme", "Papirus-Dark") == 0 && !strcmp(c.icon_theme, "Papirus-Dark"));
 	CHECK(config_set(&c, "icons.theme", "../x") < 0);

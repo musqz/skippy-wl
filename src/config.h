@@ -38,6 +38,7 @@ struct config {
 	struct label_cfg lbl;
 	enum monitor_mode monitors;
 	int icon, icon_size; /* app icon on each tile */
+	int icon_h, icon_v; /* ANCHOR_*: where the icon sits on the tile; never ANCHOR_V_BELOW */
 	char icon_theme[64];
 	int anim, anim_ms; /* fade and grow when the overlay opens */
 	int pivot; /* release of the modifiers held at open picks the selection */

@@ -59,6 +59,10 @@
 #size = 48
 #theme = hicolor
 
+## Where the icon sits on the tile: top-left, top, top-right, left, center, right, bottom-left, bottom, bottom-right.
+## A label.position inside the tile at the same place overlaps it.
+#position = bottom-right
+
 [animation]
 ## Fade and grow when the overlay opens. duration is in ms (0-1000); 0 shows it at once.
 #enabled = true
