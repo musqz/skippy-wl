@@ -94,6 +94,9 @@ int main(void)
 	CHECK(config_set(&c, "label.opacity", "196") == 0 && c.lbl.opacity == 196);
 	CHECK(config_set(&c, "label.opacity", "256") < 0);
 	CHECK(config_set(&c, "label.background", "#111111") == 0 && c.lbl.bg[3] == 1.0);
+	CHECK(c.lbl.bg_set && !c.lbl.text_set);
+	CHECK(config_set(&c, "label.text", "nonsense") < 0 && !c.lbl.text_set);
+	CHECK(config_set(&c, "label.text", "#101010") == 0 && c.lbl.text_set);
 	CHECK(config_set(&c, "label.textOutline", "white") < 0);
 	CHECK(config_set(&c, "label.show", "false") == 0 && !c.lbl.show);
 	CHECK(config_set(&c, "label.height", "7") < 0 && config_set(&c, "label.height", "30") == 0 && c.lbl.height == 30);

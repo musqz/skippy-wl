@@ -510,14 +510,39 @@ static void tile_path(cairo_t *cr, const struct rect *r, double grow)
 		cfg.tile_radius ? cfg.tile_radius + grow : 0);
 }
 
+/* white or black, whichever contrasts more with c (WCAG relative luminance) */
+static const double *contrast_text(const double *c)
+{
+	static const double white[4] = {1, 1, 1, 1}, black[4] = {0, 0, 0, 1};
+	double lin[3], lum;
+
+	for (int i = 0; i < 3; i++)
+		lin[i] = c[i] <= 0.03928 ? c[i] / 12.92 : pow((c[i] + 0.055) / 1.055, 2.4);
+	lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+	return lum > 0.179 ? black : white;
+}
+
 static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int selected)
 {
 	const struct label_cfg *l = &cfg.lbl;
 	const double *bg = selected && l->bg_hl[3] >= 0 ? l->bg_hl : l->bg;
+	const double *fg = l->text;
 	double k = l->opacity / 255.0, dim = selected ? 1.0 : 0.7;
 	int bw, bh, pad = l->radius / 2 > 4 ? l->radius / 2 : 4, tw, th, x, y, lw;
 	PangoLayout *pl;
 
+	/* no label colors configured: the selected label is filled like its frame, with readable text */
+	if (selected && !l->bg_set) {
+		static double fill[4];
+
+		fill[0] = cfg.highlight[0];
+		fill[1] = cfg.highlight[1];
+		fill[2] = cfg.highlight[2];
+		fill[3] = k > 0 ? 1.0 / k : 0; /* opaque whatever the opacity, so the text contrast holds */
+		bg = fill;
+		if (!l->text_set)
+			fg = contrast_text(bg);
+	}
 	label_rect(r, &x, &y, &bw, &bh);
 	if (bg[3] > 0) {
 		cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3] * k);
@@ -547,7 +572,7 @@ static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int 
 		cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
 		cairo_stroke(cr);
 	}
-	cairo_set_source_rgba(cr, l->text[0], l->text[1], l->text[2], l->text[3] * dim);
+	cairo_set_source_rgba(cr, fg[0], fg[1], fg[2], fg[3] * dim);
 	cairo_move_to(cr, x + pad, y + (bh - th) / 2.0);
 	pango_cairo_show_layout(cr, pl);
 	g_object_unref(pl);
