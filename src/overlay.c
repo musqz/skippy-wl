@@ -680,6 +680,27 @@ static cairo_surface_t *bg_cover(struct surf *s)
 	return out;
 }
 
+/* the open animation: fade and grow from 94% around the tile's center, clipped to the tile and its label */
+static void tile_anim_begin(cairo_t *cr, const struct rect *r, double fade, int lp)
+{
+	double sc = 0.94 + 0.06 * fade, cx = r->x + r->w / 2.0, cy = r->y + (r->h + label_space()) / 2.0;
+
+	cairo_save(cr);
+	cairo_rectangle(cr, r->x - 8 - lp, r->y - 8 - lp, r->w + 16 + 2 * lp, r->h + 2 * label_space() + 24 + 2 * lp);
+	cairo_clip(cr);
+	cairo_translate(cr, cx, cy);
+	cairo_scale(cr, sc, sc);
+	cairo_translate(cr, -cx, -cy);
+	cairo_push_group(cr);
+}
+
+static void tile_anim_end(cairo_t *cr, double fade)
+{
+	cairo_pop_group_to_source(cr);
+	cairo_paint_with_alpha(cr, fade);
+	cairo_restore(cr);
+}
+
 /* returns 1 while the open animation is still running */
 static int render(struct surf *s, cairo_t *cr)
 {
@@ -713,20 +734,9 @@ static int render(struct surf *s, cairo_t *cr)
 		struct rect *r = &s->rects[p];
 		struct tile *tl = &st.tiles[i];
 		int selected = i == st.sel;
-		char label[256];
 
-		if (animating) {
-			/* tile and label fade in and grow from 94% around the tile's center */
-			double sc = 0.94 + 0.06 * fade, cx = r->x + r->w / 2.0, cy = r->y + (r->h + label_space()) / 2.0;
-
-			cairo_save(cr);
-			cairo_rectangle(cr, r->x - 8 - lp, r->y - 8 - lp, r->w + 16 + 2 * lp, r->h + 2 * label_space() + 24 + 2 * lp);
-			cairo_clip(cr);
-			cairo_translate(cr, cx, cy);
-			cairo_scale(cr, sc, sc);
-			cairo_translate(cr, -cx, -cy);
-			cairo_push_group(cr);
-		}
+		if (animating)
+			tile_anim_begin(cr, r, fade, lp);
 		if (s->scaled[p]) {
 			cairo_save(cr);
 			tile_path(cr, r, 0);
@@ -779,12 +789,23 @@ static int render(struct surf *s, cairo_t *cr)
 			cairo_fill(cr);
 		}
 
-		if (cfg.lbl.show)
-			draw_label(cr, r, label_text(tl, label, sizeof(label)), selected);
-		if (animating) {
-			cairo_pop_group_to_source(cr);
-			cairo_paint_with_alpha(cr, fade);
-			cairo_restore(cr);
+		if (animating)
+			tile_anim_end(cr, fade);
+	}
+	/* labels last, the selected one on top, so a label that leaves its tile is not covered by the next preview */
+	for (int pass = 0; cfg.lbl.show && pass < 2; pass++) {
+		for (int p = 0; p < s->nvis && s->rects && s->scaled; p++) {
+			int i = s->vis[p];
+			struct rect *r = &s->rects[p];
+			char label[256];
+
+			if ((i == st.sel) != pass)
+				continue;
+			if (animating)
+				tile_anim_begin(cr, r, fade, lp);
+			draw_label(cr, r, label_text(&st.tiles[i], label, sizeof(label)), i == st.sel);
+			if (animating)
+				tile_anim_end(cr, fade);
 		}
 	}
 	if (st.filtering && !waiting) {
