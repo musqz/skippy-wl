@@ -264,6 +264,15 @@ PNG, JPEG, AVIF, HEIC or HEIF file drawn behind the tiles, scaled to fill each m
 .B ~/
 is expanded. Default none.
 .TP
+.B background.image_cmd
+Shell command that prints the image path on its first line. It runs each time the overlay opens, so the image follows wallpaper changes. A command that exits non-zero, prints nothing or takes longer than a second is ignored and
+.B background.image
+is used instead. A
+.B #
+after a space starts a comment, so keep it out of the command. Example:
+.IR "noctalia msg wallpaper-get" .
+Default none.
+.TP
 .B colors.background
 Overlay color as #RRGGBB or #RRGGBBAA. Default #000000ff. With an alpha below ff the desktop shows through; with
 .B background.image

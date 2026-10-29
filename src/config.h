@@ -32,6 +32,7 @@ struct config {
 	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
 	int bg_set, highlight_set, border_set; /* set explicitly: a theme file must not override them */
 	char bg_image[256]; /* PNG, JPEG, AVIF, HEIC or HEIF shown behind the tiles; empty = none */
+	char bg_image_cmd[256]; /* shell command that prints the image path, run at each open; wins over bg_image */
 	char theme_file[256]; /* labwc themerc style file the border colors are read from */
 	struct filter hide_app, hide_title, hide_status; /* windows matching any are never shown; an empty field hides nothing */
 	uint32_t keys[ACT_COUNT][MAX_BINDS]; /* xkb keysyms, 0 = unused */

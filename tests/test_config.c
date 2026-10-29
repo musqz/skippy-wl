@@ -24,6 +24,7 @@ static double dabs(double v)
 
 int main(void)
 {
+	char big[300];
 	struct config c;
 
 	config_defaults(&c);
@@ -85,6 +86,11 @@ int main(void)
 	CHECK(config_set(&c, "colors.background", "#12345g") < 0);
 
 	CHECK(config_set(&c, "background.image", "/tmp/bg.png") == 0 && !strcmp(c.bg_image, "/tmp/bg.png"));
+	CHECK(config_set(&c, "background.image_cmd", "noctalia msg wallpaper-get") == 0 &&
+		!strcmp(c.bg_image_cmd, "noctalia msg wallpaper-get"));
+	memset(big, 'a', sizeof(big) - 1);
+	big[sizeof(big) - 1] = 0;
+	CHECK(config_set(&c, "background.image_cmd", big) < 0);
 
 	CHECK(config_set(&c, "hide.app_id", "foo*, bar") == 0 && !strcmp(c.hide_app.app_id, "foo*, bar"));
 	CHECK(config_set(&c, "hide.title", "Picture-in-Picture") == 0 && !strcmp(c.hide_title.title, "Picture-in-Picture"));

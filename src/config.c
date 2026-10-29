@@ -215,6 +215,12 @@ int config_set(struct config *c, const char *key, const char *value)
 		memcpy(c->bg_image, path, sizeof(path));
 		return 0;
 	}
+	if (!strcmp(key, "background.image_cmd")) {
+		if (strlen(value) >= sizeof(c->bg_image_cmd))
+			return -1;
+		snprintf(c->bg_image_cmd, sizeof(c->bg_image_cmd), "%s", value);
+		return 0;
+	}
 	if (!strcmp(key, "colors.theme_file")) {
 		if (strlen(value) >= sizeof(c->theme_file))
 			return -1;
