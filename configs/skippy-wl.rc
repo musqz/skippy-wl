@@ -7,6 +7,10 @@
 #margin = 48
 #spacing = 28
 
+[tiles]
+## Corner radius in pixels of each window preview and its frame (0-50). 0 = square.
+#radius = 0
+
 [label]
 ## Window name on each tile. Colors are #RRGGBB or #RRGGBBAA.
 #show = true

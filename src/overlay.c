@@ -503,6 +503,13 @@ static void rounded_rect(cairo_t *cr, double x, double y, double w, double h, do
 	cairo_close_path(cr);
 }
 
+/* tile outline grown by grow pixels on every side, the radius growing with it; a square tile stays square */
+static void tile_path(cairo_t *cr, const struct rect *r, double grow)
+{
+	rounded_rect(cr, r->x - grow, r->y - grow, r->w + 2 * grow, r->h + 2 * grow,
+		cfg.tile_radius ? cfg.tile_radius + grow : 0);
+}
+
 static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int selected)
 {
 	const struct label_cfg *l = &cfg.lbl;
@@ -721,9 +728,12 @@ static int render(struct surf *s, cairo_t *cr)
 			cairo_push_group(cr);
 		}
 		if (s->scaled[p]) {
+			cairo_save(cr);
+			tile_path(cr, r, 0);
+			cairo_clip(cr);
 			cairo_set_source_surface(cr, s->scaled[p], r->x, r->y);
 			cairo_paint(cr);
-			/* corner icon, unless the tile is too small to carry one */
+			/* corner icon, unless the tile is too small to carry one; clipped with the preview */
 			if (cfg.icon && r->w >= 3 * cfg.icon_size && r->h >= 3 * cfg.icon_size) {
 				cairo_surface_t *ic = icon_get(tl->app_id, cfg.icon_theme, cfg.icon_size);
 
@@ -731,6 +741,7 @@ static int render(struct surf *s, cairo_t *cr)
 					paint_icon(cr, ic, anchor_pos(cfg.icon_h, r->x, r->w, cfg.icon_size, 6),
 						anchor_pos(cfg.icon_v, r->y, r->h, cfg.icon_size, 6));
 			}
+			cairo_restore(cr);
 		} else {
 			int isz = (r->w < r->h ? r->w : r->h) / 2;
 			cairo_surface_t *ic = NULL;
@@ -739,7 +750,7 @@ static int render(struct surf *s, cairo_t *cr)
 			isz = isz >= 256 ? 256 : isz >= 128 ? 128 : isz >= 96 ? 96 : isz >= 64 ? 64 :
 				isz >= 48 ? 48 : isz >= 32 ? 32 : 0;
 			cairo_set_source_rgb(cr, 0.16, 0.16, 0.18);
-			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
+			tile_path(cr, r, 0);
 			cairo_fill(cr);
 			if (cfg.icon && isz)
 				ic = icon_get(tl->app_id, cfg.icon_theme, isz);
@@ -753,17 +764,18 @@ static int render(struct surf *s, cairo_t *cr)
 			cairo_set_source_rgba(cr, cfg.highlight[0], cfg.highlight[1], cfg.highlight[2],
 				cfg.highlight[3]);
 			cairo_set_line_width(cr, 4);
-			cairo_rectangle(cr, r->x - 2, r->y - 2, r->w + 4, r->h + 4);
+			/* the 4 px stroke is centered on the path: its inner edge keeps the tile radius */
+			tile_path(cr, r, 2);
 		} else {
 			cairo_set_source_rgba(cr, cfg.border[0], cfg.border[1], cfg.border[2], cfg.border[3]);
 			cairo_set_line_width(cr, 1);
-			cairo_rectangle(cr, r->x + 0.5, r->y + 0.5, r->w - 1, r->h - 1);
+			tile_path(cr, r, -0.5);
 		}
 		cairo_stroke(cr);
 		if (tl->picked) {
 			cairo_set_source_rgba(cr, cfg.highlight[0], cfg.highlight[1], cfg.highlight[2],
 				cfg.highlight[3] * 0.35);
-			cairo_rectangle(cr, r->x, r->y, r->w, r->h);
+			tile_path(cr, r, 0);
 			cairo_fill(cr);
 		}
 

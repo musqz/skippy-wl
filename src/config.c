@@ -249,6 +249,8 @@ int config_set(struct config *c, const char *key, const char *value)
 {
 	if (!strcmp(key, "layout.margin"))
 		return parse_int(value, 0, 1000, &c->margin);
+	if (!strcmp(key, "tiles.radius"))
+		return parse_int(value, 0, 50, &c->tile_radius);
 	if (!strcmp(key, "layout.spacing"))
 		return parse_int(value, 0, 1000, &c->spacing);
 	if (!strcmp(key, "icons.size"))
@@ -362,7 +364,7 @@ int config_action(const struct config *c, uint32_t keysym)
 	return -1;
 }
 
-static const char *const sections[] = { "layout", "label", "monitors", "switch", "icons", "animation", "background", "colors", "hide", "bind" };
+static const char *const sections[] = { "layout", "tiles", "label", "monitors", "switch", "icons", "animation", "background", "colors", "hide", "bind" };
 
 static int known_section(const char *name)
 {
