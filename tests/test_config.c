@@ -67,13 +67,33 @@ int main(void)
 	CHECK(config_set(&c, "layout.margin", "-1") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "layout.margin", "12px") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "layout.spacing", "0") == 0 && c.spacing == 0);
-	CHECK(c.label == LABEL_TITLE);
-	CHECK(config_set(&c, "layout.label", "app_id") == 0 && c.label == LABEL_APP_ID);
-	CHECK(config_set(&c, "layout.label", "both") == 0 && c.label == LABEL_BOTH);
-	CHECK(config_set(&c, "layout.label", "class") < 0 && c.label == LABEL_BOTH);
+	CHECK(c.lbl.show && c.lbl.option == LABEL_TITLE && c.lbl.anchor_v == ANCHOR_V_BELOW);
+	CHECK(config_set(&c, "label.option", "windowClass") == 0 && c.lbl.option == LABEL_APP_ID);
+	CHECK(config_set(&c, "label.option", "both") == 0 && c.lbl.option == LABEL_BOTH);
+	CHECK(config_set(&c, "label.option", "class") < 0 && c.lbl.option == LABEL_BOTH);
+	CHECK(config_set(&c, "label.position", "top-right") == 0 && c.lbl.anchor_h == ANCHOR_H_RIGHT &&
+		c.lbl.anchor_v == ANCHOR_V_TOP);
+	CHECK(config_set(&c, "label.position", "below") == 0 && c.lbl.anchor_v == ANCHOR_V_BELOW);
+	CHECK(config_set(&c, "label.position", "middle") < 0);
+	CHECK(config_set(&c, "label.offsetY", "-5") == 0 && c.lbl.offset_y == -5);
+	CHECK(config_set(&c, "label.offsetX", "x") < 0);
+	CHECK(config_set(&c, "label.width", "0.8") == 0 && c.lbl.width > 0.79 && c.lbl.width < 0.81);
+	CHECK(config_set(&c, "label.width", "nan") < 0 && config_set(&c, "label.width", "inf") < 0);
+	CHECK(config_set(&c, "label.width", "1.5") < 0 && config_set(&c, "label.width", "0") < 0);
+	CHECK(config_set(&c, "label.opacity", "196") == 0 && c.lbl.opacity == 196);
+	CHECK(config_set(&c, "label.opacity", "256") < 0);
+	CHECK(config_set(&c, "label.background", "#111111") == 0 && c.lbl.bg[3] == 1.0);
+	CHECK(config_set(&c, "label.textOutline", "white") < 0);
+	CHECK(config_set(&c, "label.show", "false") == 0 && !c.lbl.show);
+	CHECK(config_set(&c, "label.height", "7") < 0 && config_set(&c, "label.height", "30") == 0 && c.lbl.height == 30);
+	CHECK(config_set(&c, "layout.label", "title") < 0 && config_set(&c, "layout.font", "Sans 9") < 0);
 	CHECK(config_action(&c, XKB_KEY_m) == ACT_MINIMIZE && config_action(&c, XKB_KEY_M) == ACT_MINIMIZE);
-	CHECK(config_set(&c, "layout.font", "Monospace 9") == 0);
-	CHECK(config_set(&c, "layout.font", "") < 0);
+	CHECK(config_set(&c, "label.font", "Monospace 9") == 0 && !strcmp(c.lbl.font, "Monospace 9"));
+	CHECK(config_set(&c, "label.font", "IosevkaTermNF:size=12:weight=bold") == 0 &&
+		!strcmp(c.lbl.font, "IosevkaTermNF Bold 12"));
+	CHECK(config_set(&c, "label.font", "") < 0 && config_set(&c, "label.font", ":") < 0);
+	CHECK(config_set(&c, "label.font", "Iosevka:pixelsize=14") == 0 && !strcmp(c.lbl.font, "Iosevka 14px"));
+	CHECK(config_set(&c, "label.font", "Iosevka:antialias=true") < 0);
 	CHECK(config_set(&c, "nonsense", "1") < 0);
 	CHECK(config_set(&c, "margin", "1") < 0 && config_set(&c, "bind", "x") < 0);
 
@@ -141,11 +161,11 @@ int main(void)
 		CHECK(mkdir(sub, 0700) == 0);
 		f = fopen(path, "w");
 		CHECK(f != NULL);
-		fprintf(f, "# comment\nwait = 99\n[layout]\nmargin = 11\nspacing = 22\nbogus\nlabel_height = 33 # px\n# ");
+		fprintf(f, "# comment\nwait = 99\n[layout]\nmargin = 11\nspacing = 22\nbogus\n[label]\nheight = 33 # px\n# ");
 		for (i = 0; i < 400; i++)
 			fputc('x', f);
 		fprintf(f, "\nfont = Mono 9\n[layout\nspacing = 55\n[]\nspacing = 56\n[nosuch]\nspacing = 57\n"
-			"[layout]\nlabel = app_id");
+			"[label]\noption = windowClass");
 		/* a line over 255 characters is skipped, not parsed up to the cut */
 		for (i = 0; i < 300; i++)
 			fputc(' ', f);
@@ -158,17 +178,17 @@ int main(void)
 			fputc(' ', f);
 		/* a too long header drops its keys instead of passing them to the section before */
 		fprintf(f, "# note\nclose = y\n[animation]\nduration = 321\n[ colors ]  # note\nhighlight = #00ff00 # green\nborder = #112233\t# tab\n"
-			"background = # nothing\n[layout]\nfont = # default\nmargin = 11 # px\n[bind]\nclose = x\n");
+			"background = # nothing\n[label]\nfont = # default\n[layout]\nmargin = 11 # px\n[bind]\nclose = x\n");
 		fclose(f);
 		setenv("XDG_CONFIG_HOME", dir, 1);
 		config_load(&c);
-		CHECK(c.margin == 11 && c.spacing == 22 && c.label_h == 33);
-		CHECK(c.switch_wait == 100 && c.label == LABEL_TITLE);
+		CHECK(c.margin == 11 && c.spacing == 22 && c.lbl.height == 33);
+		CHECK(c.switch_wait == 100 && c.lbl.option == LABEL_TITLE);
 		CHECK(c.anim_ms == 321);
 		CHECK(c.icon_size == 64 && config_action(&c, XKB_KEY_y) == -1);
 		CHECK(dabs(c.bg[3] - 1.0) < 1e-6 && dabs(c.bg[0]) < 1e-6);
 		CHECK(dabs(c.border[0] - 0x11 / 255.0) < 1e-6);
-		CHECK(strcmp(c.font, "Mono 9") == 0);
+		CHECK(strcmp(c.lbl.font, "Mono 9") == 0);
 		CHECK(config_action(&c, XKB_KEY_x) == ACT_CLOSE);
 		CHECK(dabs(c.highlight[1] - 1.0) < 1e-6);
 		unlink(path);

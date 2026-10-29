@@ -49,7 +49,6 @@ void config_defaults(struct config *c)
 	memset(c, 0, sizeof(*c));
 	c->margin = 48;
 	c->spacing = 28;
-	c->label_h = 28;
 	c->icon = 1;
 	c->icon_size = 48;
 	snprintf(c->icon_theme, sizeof(c->icon_theme), "hicolor");
@@ -58,7 +57,15 @@ void config_defaults(struct config *c)
 	c->pivot = 1;
 	c->switch_wait = 100;
 	c->switch_hold = 1000;
-	snprintf(c->font, sizeof(c->font), "Sans 11");
+	c->lbl.show = 1;
+	c->lbl.anchor_h = ANCHOR_H_CENTER;
+	c->lbl.anchor_v = ANCHOR_V_BELOW;
+	c->lbl.height = 28;
+	c->lbl.width = 1.0;
+	c->lbl.opacity = 255;
+	c->lbl.text[0] = c->lbl.text[1] = c->lbl.text[2] = c->lbl.text[3] = 1.0;
+	c->lbl.bg_hl[3] = -1; /* unset: same as bg */
+	snprintf(c->lbl.font, sizeof(c->lbl.font), "Sans 11");
 	c->bg[3] = 1.0;
 	c->highlight[0] = 0.35;
 	c->highlight[1] = 0.6;
@@ -102,6 +109,52 @@ static int parse_bool(const char *s, int *out)
 	return 0;
 }
 
+static int parse_frac(const char *s, double lo, double hi, double *out)
+{
+	char *end;
+	double v = strtod(s, &end);
+
+	if (end == s || *end || !(v >= lo && v <= hi))
+		return -1;
+	*out = v;
+	return 0;
+}
+
+/* "Family:size=12:weight=bold" (skippy-xd) or a Pango description */
+static int parse_font(const char *s, char *out, size_t len)
+{
+	char buf[96], *tok, *save, family[96], extra[48] = "", size[16] = "";
+	int n;
+
+	if (!*s || strlen(s) >= len)
+		return -1;
+	if (!strchr(s, ':')) {
+		memcpy(out, s, strlen(s) + 1);
+		return 0;
+	}
+	snprintf(buf, sizeof(buf), "%s", s);
+	tok = strtok_r(buf, ":", &save);
+	if (!tok)
+		return -1;
+	snprintf(family, sizeof(family), "%s", tok);
+	for (tok = strtok_r(NULL, ":", &save); tok; tok = strtok_r(NULL, ":", &save)) {
+		if (!strncmp(tok, "size=", 5))
+			snprintf(size, sizeof(size), " %s", tok + 5);
+		else if (!strncmp(tok, "pixelsize=", 10))
+			snprintf(size, sizeof(size), " %spx", tok + 10);
+		else if (!strcmp(tok, "weight=bold"))
+			strncat(extra, " Bold", sizeof(extra) - strlen(extra) - 1);
+		else if (!strcmp(tok, "weight=light"))
+			strncat(extra, " Light", sizeof(extra) - strlen(extra) - 1);
+		else if (!strcmp(tok, "slant=italic") || !strcmp(tok, "slant=oblique"))
+			strncat(extra, " Italic", sizeof(extra) - strlen(extra) - 1);
+		else if (strcmp(tok, "weight=regular") && strcmp(tok, "weight=medium") && strcmp(tok, "slant=roman"))
+			return -1;
+	}
+	n = snprintf(out, len, "%s%s%s", family, extra, size);
+	return n < (int)len ? 0 : -1;
+}
+
 /* #RRGGBB or #RRGGBBAA */
 static int parse_color(const char *s, double out[4])
 {
@@ -123,14 +176,71 @@ static int parse_color(const char *s, double out[4])
 	return 0;
 }
 
+static const struct { const char *name; int h, v; } anchors[] = {
+	{ "below", ANCHOR_H_CENTER, ANCHOR_V_BELOW },
+	{ "top-left", ANCHOR_H_LEFT, ANCHOR_V_TOP }, { "top", ANCHOR_H_CENTER, ANCHOR_V_TOP },
+	{ "top-right", ANCHOR_H_RIGHT, ANCHOR_V_TOP }, { "left", ANCHOR_H_LEFT, ANCHOR_V_MIDDLE },
+	{ "center", ANCHOR_H_CENTER, ANCHOR_V_MIDDLE }, { "right", ANCHOR_H_RIGHT, ANCHOR_V_MIDDLE },
+	{ "bottom-left", ANCHOR_H_LEFT, ANCHOR_V_BOTTOM }, { "bottom", ANCHOR_H_CENTER, ANCHOR_V_BOTTOM },
+	{ "bottom-right", ANCHOR_H_RIGHT, ANCHOR_V_BOTTOM },
+};
+
+/* key is the part after "label." */
+static int set_label(struct label_cfg *l, const char *key, const char *value)
+{
+	if (!strcmp(key, "show"))
+		return parse_bool(value, &l->show);
+	if (!strcmp(key, "option")) {
+		if (!strcmp(value, "windowTitle"))
+			l->option = LABEL_TITLE;
+		else if (!strcmp(value, "windowClass"))
+			l->option = LABEL_APP_ID;
+		else if (!strcmp(value, "both"))
+			l->option = LABEL_BOTH;
+		else
+			return -1;
+		return 0;
+	}
+	if (!strcmp(key, "position")) {
+		for (size_t i = 0; i < sizeof(anchors) / sizeof(anchors[0]); i++)
+			if (!strcmp(value, anchors[i].name)) {
+				l->anchor_h = anchors[i].h;
+				l->anchor_v = anchors[i].v;
+				return 0;
+			}
+		return -1;
+	}
+	if (!strcmp(key, "offsetX"))
+		return parse_int(value, -4000, 4000, &l->offset_x);
+	if (!strcmp(key, "offsetY"))
+		return parse_int(value, -4000, 4000, &l->offset_y);
+	if (!strcmp(key, "height"))
+		return parse_int(value, 8, 200, &l->height);
+	if (!strcmp(key, "width"))
+		return parse_frac(value, 0.1, 1.0, &l->width);
+	if (!strcmp(key, "opacity"))
+		return parse_int(value, 0, 255, &l->opacity);
+	if (!strcmp(key, "text"))
+		return parse_color(value, l->text);
+	if (!strcmp(key, "textOutline"))
+		return parse_color(value, l->outline);
+	if (!strcmp(key, "border"))
+		return parse_color(value, l->border);
+	if (!strcmp(key, "background"))
+		return parse_color(value, l->bg);
+	if (!strcmp(key, "backgroundHighlight"))
+		return parse_color(value, l->bg_hl);
+	if (!strcmp(key, "font"))
+		return parse_font(value, l->font, sizeof(l->font));
+	return -1;
+}
+
 int config_set(struct config *c, const char *key, const char *value)
 {
 	if (!strcmp(key, "layout.margin"))
 		return parse_int(value, 0, 1000, &c->margin);
 	if (!strcmp(key, "layout.spacing"))
 		return parse_int(value, 0, 1000, &c->spacing);
-	if (!strcmp(key, "layout.label_height"))
-		return parse_int(value, 8, 200, &c->label_h);
 	if (!strcmp(key, "icons.size"))
 		return parse_int(value, 16, 256, &c->icon_size);
 	if (!strcmp(key, "icons.enabled"))
@@ -157,17 +267,6 @@ int config_set(struct config *c, const char *key, const char *value)
 		return parse_int(value, 0, 5000, &c->switch_wait);
 	if (!strcmp(key, "switch.pivot"))
 		return parse_bool(value, &c->pivot);
-	if (!strcmp(key, "layout.label")) {
-		if (!strcmp(value, "title"))
-			c->label = LABEL_TITLE;
-		else if (!strcmp(value, "app_id"))
-			c->label = LABEL_APP_ID;
-		else if (!strcmp(value, "both"))
-			c->label = LABEL_BOTH;
-		else
-			return -1;
-		return 0;
-	}
 	if (!strcmp(key, "monitors.mode")) {
 		if (!strcmp(value, "each"))
 			c->monitors = MON_EACH;
@@ -177,12 +276,8 @@ int config_set(struct config *c, const char *key, const char *value)
 			return -1;
 		return 0;
 	}
-	if (!strcmp(key, "layout.font")) {
-		if (!*value || strlen(value) >= sizeof(c->font))
-			return -1;
-		snprintf(c->font, sizeof(c->font), "%s", value);
-		return 0;
-	}
+	if (!strncmp(key, "label.", 6))
+		return set_label(&c->lbl, key + 6, value);
 	if (!strcmp(key, "colors.background")) {
 		if (parse_color(value, c->bg) < 0)
 			return -1;
@@ -246,7 +341,7 @@ int config_action(const struct config *c, uint32_t keysym)
 	return -1;
 }
 
-static const char *const sections[] = { "layout", "monitors", "switch", "icons", "animation", "background", "colors", "hide", "bind" };
+static const char *const sections[] = { "layout", "label", "monitors", "switch", "icons", "animation", "background", "colors", "hide", "bind" };
 
 static int known_section(const char *name)
 {
@@ -420,8 +515,11 @@ void config_load(struct config *c)
 			continue;
 		}
 		snprintf(key, sizeof(key), "%s.%s", section, trim(s));
-		if (config_set(c, key, trim(eq + 1)) < 0)
+		if (config_set(c, key, trim(eq + 1)) < 0) {
 			fprintf(stderr, "skippy-wl: %s:%d: invalid setting '%s'\n", path, n, key);
+			if (!strcmp(key, "layout.label") || !strcmp(key, "layout.label_height") || !strcmp(key, "layout.font"))
+				fprintf(stderr, "skippy-wl: it moved to [label]: option, height, font\n");
+		}
 	}
 	fclose(f);
 	load_theme(c);

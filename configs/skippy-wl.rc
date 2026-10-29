@@ -3,15 +3,38 @@
 ## Remove the leading # from an option to set it.
 
 [layout]
-## Pixels around the grid and between tiles; height reserved for each title.
+## Pixels around the grid and between tiles.
 #margin = 48
 #spacing = 28
-#label_height = 28
 
-## Text under each tile: title, app_id or both.
-#label = title
+[label]
+## Window name on each tile. Colors are #RRGGBB or #RRGGBBAA.
+#show = true
 
-## Pango font description for titles.
+## windowTitle, windowClass (the app id) or both.
+#option = windowTitle
+
+## below (under the tile), or inside it: top-left, top, top-right, left, center, right, bottom-left, bottom, bottom-right.
+#position = below
+
+## Move the label from its position; it may leave the tile.
+#offsetX = 0
+#offsetY = 0
+
+## Box height in pixels (below also reserves it under the tile) and width as a fraction of the tile.
+#height = 28
+#width = 1.0
+
+## opacity (0-255) scales border and background. backgroundHighlight is for the selected tile; unset = background.
+#border = #00000000
+#background = #00000000
+#backgroundHighlight = #555555
+#opacity = 255
+
+#text = #ffffff
+#textOutline = #00000000
+
+## Pango description or skippy-xd style (Name:size=12:weight=bold). Also sets the filter bar font.
 #font = Sans 11
 
 [monitors]

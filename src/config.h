@@ -16,11 +16,25 @@ enum action {
 #define MAX_BINDS 4
 
 enum label_mode { LABEL_TITLE, LABEL_APP_ID, LABEL_BOTH };
+enum { ANCHOR_H_LEFT, ANCHOR_H_CENTER, ANCHOR_H_RIGHT };
+enum { ANCHOR_V_TOP, ANCHOR_V_MIDDLE, ANCHOR_V_BOTTOM, ANCHOR_V_BELOW };
+
+struct label_cfg {
+	int show;
+	enum label_mode option;
+	int anchor_h, anchor_v; /* ANCHOR_V_BELOW sits under the tile and reserves height; the rest sit inside it */
+	int offset_x, offset_y; /* from the anchor; may leave the tile */
+	int height; /* box height, and the room reserved under the tile */
+	double width; /* box width as a fraction of the tile */
+	int opacity; /* 0-255, scales border and background */
+	double text[4], outline[4], border[4], bg[4], bg_hl[4]; /* r, g, b, a in 0..1 */
+	char font[96]; /* Pango description */
+};
 enum monitor_mode { MON_EACH, MON_POINTER };
 
 struct config {
-	int margin, spacing, label_h;
-	enum label_mode label;
+	int margin, spacing;
+	struct label_cfg lbl;
 	enum monitor_mode monitors;
 	int icon, icon_size; /* app icon on each tile */
 	char icon_theme[64];
@@ -28,7 +42,6 @@ struct config {
 	int pivot; /* release of the modifiers held at open picks the selection */
 	int switch_wait; /* ms before a --next/--prev overlay is drawn; 0 = at once */
 	int switch_hold; /* ms of pause after which releasing the modifiers leaves the overlay open; 0 = always pick */
-	char font[96];
 	double bg[4], highlight[4], border[4]; /* r, g, b, a in 0..1 */
 	int bg_set, highlight_set, border_set; /* set explicitly: a theme file must not override them */
 	char bg_image[256]; /* PNG, JPEG, AVIF, HEIC or HEIF shown behind the tiles; empty = none */
