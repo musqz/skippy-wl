@@ -42,8 +42,11 @@
 
 [background]
 ## PNG, JPEG, AVIF, HEIC or HEIF image shown behind the tiles, scaled to fill each monitor. Unset = plain color.
-## For a see-through overlay that shows the desktop, set colors.background to #00000000.
+## colors.background = #00000000 makes the overlay see-through: windows show behind the tiles.
 #image = ~/Pictures/wallpaper.png
+
+## Shell command that prints the image path, run each time the overlay opens. Falls back to image if it fails or takes over 1 s.
+#image_cmd = noctalia msg wallpaper-get
 
 [colors]
 ## #RRGGBB or #RRGGBBAA. With an image, setting it tints the image; leave it unset for the image alone.

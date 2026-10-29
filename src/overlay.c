@@ -1,12 +1,16 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include <cairo.h>
 #include <glib.h>
+#include <limits.h>
 #include <linux/input-event-codes.h>
 #include <pango/pangocairo.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <xkbcommon/xkbcommon.h>
 
@@ -73,7 +77,7 @@ static struct {
 	struct tile *tiles;
 	int n;
 	struct surf *surfs;
-	cairo_surface_t *bg_img; /* background.image as loaded; NULL = none or not tried yet */
+	cairo_surface_t *bg_img; /* background.image_cmd or background.image as loaded; NULL = none or not tried yet */
 	int bg_tried;
 	int sel;
 	struct surf *ptr_surf;
@@ -465,14 +469,81 @@ static double anim_progress(void)
 	return 1 - t * t * t;
 }
 
+/* first line printed by background.image_cmd, trimmed and ~/ expanded; 0 on failure, timeout or a non-zero exit */
+static int bg_cmd_path(char *path, size_t len)
+{
+	char line[PATH_MAX], *s;
+	const char *home = getenv("HOME");
+	int fd[2], status, got = 0, ok = 0;
+	pid_t pid;
+	struct pollfd pf;
+
+	if (pipe(fd))
+		return 0;
+	pid = fork();
+	if (pid < 0) {
+		close(fd[0]);
+		close(fd[1]);
+		return 0;
+	}
+	if (!pid) {
+		signal(SIGPIPE, SIG_DFL);
+		dup2(fd[1], STDOUT_FILENO);
+		close(fd[0]);
+		close(fd[1]);
+		execl("/bin/sh", "sh", "-c", cfg.bg_image_cmd, (char *)NULL);
+		_exit(127);
+	}
+	close(fd[1]);
+	pf.fd = fd[0];
+	pf.events = POLLIN;
+	/* a hung command must not freeze the overlay */
+	while (got < (int)sizeof(line) - 1 && poll(&pf, 1, 1000) > 0) {
+		ssize_t n = read(fd[0], line + got, sizeof(line) - 1 - got);
+
+		if (n <= 0) {
+			ok = n == 0;
+			break;
+		}
+		got += n;
+	}
+	close(fd[0]);
+	if (!ok)
+		kill(pid, SIGKILL);
+	if (waitpid(pid, &status, 0) < 0 || !ok || !WIFEXITED(status) || WEXITSTATUS(status))
+		return 0;
+	line[got] = 0;
+	line[strcspn(line, "\r\n")] = 0;
+	for (s = line; *s == ' ' || *s == '\t'; s++)
+		;
+	for (char *e = s + strlen(s); e > s && (e[-1] == ' ' || e[-1] == '\t'); )
+		*--e = 0;
+	if (s[0] == '~' && s[1] == '/' && home)
+		snprintf(path, len, "%s%s", home, s + 1);
+	else
+		snprintf(path, len, "%s", s);
+	return path[0] != 0;
+}
+
 /* loaded on the first draw, so a quick tap that never draws does not pay for the decode */
 static cairo_surface_t *bg_image(void)
 {
-	if (!st.bg_tried && cfg.bg_image[0]) {
-		st.bg_tried = 1;
+	char path[PATH_MAX];
+
+	if (st.bg_tried)
+		return st.bg_img;
+	st.bg_tried = 1;
+	if (cfg.bg_image_cmd[0] && bg_cmd_path(path, sizeof(path))) {
+		st.bg_img = bgimage_load(path);
+		if (!st.bg_img)
+			fprintf(stderr, "skippy-wl: cannot read background image %s\n", path);
+	} else if (cfg.bg_image_cmd[0]) {
+		fprintf(stderr, "skippy-wl: background.image_cmd gave no path\n");
+	}
+	if (!st.bg_img && cfg.bg_image[0]) {
 		st.bg_img = bgimage_load(cfg.bg_image);
 		if (!st.bg_img)
-			fprintf(stderr, "skippy-wl: cannot read background.image %s\n", cfg.bg_image);
+			fprintf(stderr, "skippy-wl: cannot read background image %s\n", cfg.bg_image);
 	}
 	return st.bg_img;
 }
