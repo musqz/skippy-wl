@@ -1,27 +1,18 @@
 # Maintainer: musqz <gummy-fang-deputy@duck.com>
-# Local build from this checkout (committed HEAD): cd packaging && makepkg -f
-pkgname=skippy-wl-git
-pkgver=0.1.0.r82.g558d411
+pkgname=skippy-wl
+pkgver=0.1.0
 pkgrel=1
 pkgdesc='Window overview for labwc'
 arch=('x86_64')
 url='https://github.com/musqz/skippy-wl'
 license=('GPL-3.0-or-later')
 depends=('cairo' 'gdk-pixbuf2' 'glib2' 'libheif' 'libxkbcommon' 'pango' 'librsvg' 'wayland')
-makedepends=('git' 'meson')
-provides=('skippy-wl')
-conflicts=('skippy-wl')
-source=("$pkgname::git+file://$(dirname "$PWD")")
+makedepends=('meson')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
-pkgver() {
-	cd "$pkgname"
-	printf '%s.r%s.g%s' "$(sed -n "s/^  version: '\(.*\)',/\1/p" meson.build)" \
-		"$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
-}
-
 build() {
-	arch-meson "$pkgname" build
+	arch-meson "$pkgname-$pkgver" build
 	meson compile -C build
 }
 
@@ -31,5 +22,5 @@ check() {
 
 package() {
 	meson install -C build --destdir "$pkgdir"
-	install -Dm644 "$pkgname/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+	install -Dm644 "$pkgname-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

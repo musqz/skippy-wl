@@ -14,8 +14,10 @@ Remove with `./install.sh --uninstall`.
 Local build from the committed `HEAD` of this checkout:
 
     ./install.sh --uninstall   # same PREFIX/SUDO as the install
-    cd packaging && makepkg -f
+    cd packaging && makepkg -p PKGBUILD-git -f
     sudo pacman -U skippy-wl-git-*.pkg.tar.zst
+
+`packaging/PKGBUILD` builds the tagged release tarball (`skippy-wl`) and works once the tag is public.
 
 The unit installs to `/usr/share/systemd/user/`. Restart it with `systemctl --user daemon-reload && systemctl --user restart skippy-wl.service`.
 
