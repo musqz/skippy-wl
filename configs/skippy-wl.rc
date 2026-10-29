@@ -21,9 +21,10 @@
 #offsetX = 0
 #offsetY = 0
 
-## Box height in pixels (below also reserves it under the tile) and width as a fraction of the tile.
+## Box height in pixels (below also reserves it under the tile), width as a fraction of the tile, corner radius in pixels.
 #height = 28
-#width = 1.0
+#width = 0.92
+#radius = 6
 
 ## opacity (0-255) scales border and background. backgroundHighlight is for the selected tile; unset = background.
 #border = #00000000

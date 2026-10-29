@@ -61,7 +61,8 @@ void config_defaults(struct config *c)
 	c->lbl.anchor_h = ANCHOR_H_CENTER;
 	c->lbl.anchor_v = ANCHOR_V_BELOW;
 	c->lbl.height = 28;
-	c->lbl.width = 1.0;
+	c->lbl.width = 0.92;
+	c->lbl.radius = 6;
 	c->lbl.opacity = 255;
 	c->lbl.text[0] = c->lbl.text[1] = c->lbl.text[2] = c->lbl.text[3] = 1.0;
 	c->lbl.bg_hl[3] = -1; /* unset: same as bg */
@@ -218,6 +219,8 @@ static int set_label(struct label_cfg *l, const char *key, const char *value)
 		return parse_int(value, 8, 200, &l->height);
 	if (!strcmp(key, "width"))
 		return parse_frac(value, 0.1, 1.0, &l->width);
+	if (!strcmp(key, "radius"))
+		return parse_int(value, 0, 50, &l->radius);
 	if (!strcmp(key, "opacity"))
 		return parse_int(value, 0, 255, &l->opacity);
 	if (!strcmp(key, "text"))

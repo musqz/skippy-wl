@@ -3,6 +3,7 @@
 #include <glib.h>
 #include <limits.h>
 #include <linux/input-event-codes.h>
+#include <math.h>
 #include <pango/pangocairo.h>
 #include <poll.h>
 #include <signal.h>
@@ -71,6 +72,8 @@ struct surf {
 static struct config cfg;
 static int active;
 static PangoFontDescription *font, *font_big;
+#define LABEL_GAP 4 /* between the label box and the tile frame */
+
 static int label_space(void);
 static void label_rect(const struct rect *r, int *x, int *y, int *w, int *h);
 
@@ -457,7 +460,7 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int bi
 /* height reserved under each tile; labels inside the tile need none */
 static int label_space(void)
 {
-	return cfg.lbl.show && cfg.lbl.anchor_v == ANCHOR_V_BELOW ? cfg.lbl.height : 0;
+	return cfg.lbl.show && cfg.lbl.anchor_v == ANCHOR_V_BELOW ? cfg.lbl.height + LABEL_GAP : 0;
 }
 
 /* where the label box goes for tile r */
@@ -467,11 +470,33 @@ static void label_rect(const struct rect *r, int *x, int *y, int *w, int *h)
 
 	*w = (int)(r->w * l->width);
 	*h = l->height;
-	*x = l->anchor_h == ANCHOR_H_LEFT ? r->x : l->anchor_h == ANCHOR_H_RIGHT ? r->x + r->w - *w : r->x + (r->w - *w) / 2;
-	*y = l->anchor_v == ANCHOR_V_TOP ? r->y : l->anchor_v == ANCHOR_V_MIDDLE ? r->y + (r->h - *h) / 2 :
-		l->anchor_v == ANCHOR_V_BOTTOM ? r->y + r->h - *h : r->y + r->h;
+	/* a side anchor keeps the gap on its side; the box never overhangs the other */
+	if (l->anchor_h != ANCHOR_H_CENTER && *w > r->w - LABEL_GAP)
+		*w = r->w - LABEL_GAP;
+	*x = l->anchor_h == ANCHOR_H_LEFT ? r->x + LABEL_GAP : l->anchor_h == ANCHOR_H_RIGHT ? r->x + r->w - *w - LABEL_GAP :
+		r->x + (r->w - *w) / 2;
+	*y = l->anchor_v == ANCHOR_V_TOP ? r->y + LABEL_GAP : l->anchor_v == ANCHOR_V_MIDDLE ? r->y + (r->h - *h) / 2 :
+		l->anchor_v == ANCHOR_V_BOTTOM ? r->y + r->h - *h - LABEL_GAP : r->y + r->h + LABEL_GAP;
 	*x += l->offset_x;
 	*y += l->offset_y;
+}
+
+static void rounded_rect(cairo_t *cr, double x, double y, double w, double h, double r)
+{
+	if (w <= 0 || h <= 0)
+		return;
+	if (r > w / 2)
+		r = w / 2;
+	if (r > h / 2)
+		r = h / 2;
+	if (r < 0)
+		r = 0;
+	cairo_new_sub_path(cr);
+	cairo_arc(cr, x + w - r, y + r, r, -M_PI / 2, 0);
+	cairo_arc(cr, x + w - r, y + h - r, r, 0, M_PI / 2);
+	cairo_arc(cr, x + r, y + h - r, r, M_PI / 2, M_PI);
+	cairo_arc(cr, x + r, y + r, r, M_PI, 3 * M_PI / 2);
+	cairo_close_path(cr);
 }
 
 static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int selected)
@@ -479,19 +504,19 @@ static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int 
 	const struct label_cfg *l = &cfg.lbl;
 	const double *bg = selected && l->bg_hl[3] >= 0 ? l->bg_hl : l->bg;
 	double k = l->opacity / 255.0, dim = selected ? 1.0 : 0.7;
-	int bw, bh, pad = 4, tw, th, x, y, lw;
+	int bw, bh, pad = l->radius / 2 > 4 ? l->radius / 2 : 4, tw, th, x, y, lw;
 	PangoLayout *pl;
 
 	label_rect(r, &x, &y, &bw, &bh);
 	if (bg[3] > 0) {
 		cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3] * k);
-		cairo_rectangle(cr, x, y, bw, bh);
+		rounded_rect(cr, x, y, bw, bh, l->radius);
 		cairo_fill(cr);
 	}
 	if (l->border[3] > 0) {
 		cairo_set_source_rgba(cr, l->border[0], l->border[1], l->border[2], l->border[3] * k);
 		cairo_set_line_width(cr, 1);
-		cairo_rectangle(cr, x + 0.5, y + 0.5, bw - 1, bh - 1);
+		rounded_rect(cr, x + 0.5, y + 0.5, bw - 1, bh - 1, l->radius - 0.5);
 		cairo_stroke(cr);
 	}
 
