@@ -463,6 +463,12 @@ static int label_space(void)
 	return cfg.lbl.show && cfg.lbl.anchor_v == ANCHOR_V_BELOW ? cfg.lbl.height + LABEL_GAP : 0;
 }
 
+/* start of an item of length item in a span from origin: anchor 0 = start, 1 = middle, 2 = end, gap off the edge */
+static int anchor_pos(int anchor, int origin, int len, int item, int gap)
+{
+	return anchor == 0 ? origin + gap : anchor == 1 ? origin + (len - item) / 2 : origin + len - item - gap;
+}
+
 /* where the label box goes for tile r */
 static void label_rect(const struct rect *r, int *x, int *y, int *w, int *h)
 {
@@ -473,10 +479,8 @@ static void label_rect(const struct rect *r, int *x, int *y, int *w, int *h)
 	/* a side anchor keeps the gap on its side; the box never overhangs the other */
 	if (l->anchor_h != ANCHOR_H_CENTER && *w > r->w - LABEL_GAP)
 		*w = r->w - LABEL_GAP;
-	*x = l->anchor_h == ANCHOR_H_LEFT ? r->x + LABEL_GAP : l->anchor_h == ANCHOR_H_RIGHT ? r->x + r->w - *w - LABEL_GAP :
-		r->x + (r->w - *w) / 2;
-	*y = l->anchor_v == ANCHOR_V_TOP ? r->y + LABEL_GAP : l->anchor_v == ANCHOR_V_MIDDLE ? r->y + (r->h - *h) / 2 :
-		l->anchor_v == ANCHOR_V_BOTTOM ? r->y + r->h - *h - LABEL_GAP : r->y + r->h + LABEL_GAP;
+	*x = anchor_pos(l->anchor_h, r->x, r->w, *w, LABEL_GAP);
+	*y = l->anchor_v == ANCHOR_V_BELOW ? r->y + r->h + LABEL_GAP : anchor_pos(l->anchor_v, r->y, r->h, *h, LABEL_GAP);
 	*x += l->offset_x;
 	*y += l->offset_y;
 }
@@ -724,8 +728,8 @@ static int render(struct surf *s, cairo_t *cr)
 				cairo_surface_t *ic = icon_get(tl->app_id, cfg.icon_theme, cfg.icon_size);
 
 				if (ic)
-					paint_icon(cr, ic, r->x + r->w - cfg.icon_size - 6,
-						r->y + r->h - cfg.icon_size - 6);
+					paint_icon(cr, ic, anchor_pos(cfg.icon_h, r->x, r->w, cfg.icon_size, 6),
+						anchor_pos(cfg.icon_v, r->y, r->h, cfg.icon_size, 6));
 			}
 		} else {
 			int isz = (r->w < r->h ? r->w : r->h) / 2;
