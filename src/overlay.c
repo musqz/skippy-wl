@@ -71,6 +71,8 @@ struct surf {
 static struct config cfg;
 static int active;
 static PangoFontDescription *font, *font_big;
+static int label_space(void);
+static void label_rect(const struct rect *r, int *x, int *y, int *w, int *h);
 
 static struct {
 	struct globals *g;
@@ -342,7 +344,7 @@ static void relayout(struct surf *s)
 	/* the filter bar gets its own strip when the margin is too small for it */
 	top = st.filtering && cfg.margin < BAR_BOTTOM ? BAR_BOTTOM : cfg.margin;
 	s->cols = layout_grid(src, s->nvis, (struct size){ s->w - 2 * cfg.margin, s->h - top - cfg.margin },
-		cfg.spacing, cfg.label_h, s->rects);
+		cfg.spacing, label_space(), s->rects);
 	free(src);
 
 	for (int p = 0; p < s->nvis; p++) {
@@ -375,8 +377,13 @@ static int hit_test(struct surf *s, double x, double y)
 	for (int p = 0; p < s->nvis; p++) {
 		struct rect *r = &s->rects[p];
 
+		int lx, ly, lw, lh;
+
 		if (x >= r->x - pad && x < r->x + r->w + pad &&
-				y >= r->y - pad && y < r->y + r->h + cfg.label_h + pad)
+				y >= r->y - pad && y < r->y + r->h + label_space() + pad)
+			return s->vis[p];
+		label_rect(r, &lx, &ly, &lw, &lh);
+		if (cfg.lbl.show && x >= lx && x < lx + lw && y >= ly && y < ly + lh)
 			return s->vis[p];
 	}
 	return -1;
@@ -386,7 +393,7 @@ static int hit_test(struct surf *s, double x, double y)
 
 static void fonts_init(void)
 {
-	font = pango_font_description_from_string(cfg.font);
+	font = pango_font_description_from_string(cfg.lbl.font);
 	/* a family-only font string has no size */
 	if (pango_font_description_get_size(font) == 0)
 		pango_font_description_set_size(font, 11 * PANGO_SCALE);
@@ -404,7 +411,7 @@ static const char *label_text(const struct tile *tl, char *buf, size_t len)
 {
 	const char *title = tl->title, *app = tl->app_id;
 
-	switch (cfg.label) {
+	switch (cfg.lbl.option) {
 	case LABEL_APP_ID:
 		return app[0] ? app : title;
 	case LABEL_BOTH:
@@ -445,6 +452,69 @@ static void draw_text(cairo_t *cr, const char *text, int x, int y, int w, int bi
 		int center_v, int h, double alpha)
 {
 	draw_text_e(cr, text, x, y, w, big, center_v, h, alpha, PANGO_ELLIPSIZE_END);
+}
+
+/* height reserved under each tile; labels inside the tile need none */
+static int label_space(void)
+{
+	return cfg.lbl.show && cfg.lbl.anchor_v == ANCHOR_V_BELOW ? cfg.lbl.height : 0;
+}
+
+/* where the label box goes for tile r */
+static void label_rect(const struct rect *r, int *x, int *y, int *w, int *h)
+{
+	const struct label_cfg *l = &cfg.lbl;
+
+	*w = (int)(r->w * l->width);
+	*h = l->height;
+	*x = l->anchor_h == ANCHOR_H_LEFT ? r->x : l->anchor_h == ANCHOR_H_RIGHT ? r->x + r->w - *w : r->x + (r->w - *w) / 2;
+	*y = l->anchor_v == ANCHOR_V_TOP ? r->y : l->anchor_v == ANCHOR_V_MIDDLE ? r->y + (r->h - *h) / 2 :
+		l->anchor_v == ANCHOR_V_BOTTOM ? r->y + r->h - *h : r->y + r->h;
+	*x += l->offset_x;
+	*y += l->offset_y;
+}
+
+static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int selected)
+{
+	const struct label_cfg *l = &cfg.lbl;
+	const double *bg = selected && l->bg_hl[3] >= 0 ? l->bg_hl : l->bg;
+	double k = l->opacity / 255.0, dim = selected ? 1.0 : 0.7;
+	int bw, bh, pad = 4, tw, th, x, y, lw;
+	PangoLayout *pl;
+
+	label_rect(r, &x, &y, &bw, &bh);
+	if (bg[3] > 0) {
+		cairo_set_source_rgba(cr, bg[0], bg[1], bg[2], bg[3] * k);
+		cairo_rectangle(cr, x, y, bw, bh);
+		cairo_fill(cr);
+	}
+	if (l->border[3] > 0) {
+		cairo_set_source_rgba(cr, l->border[0], l->border[1], l->border[2], l->border[3] * k);
+		cairo_set_line_width(cr, 1);
+		cairo_rectangle(cr, x + 0.5, y + 0.5, bw - 1, bh - 1);
+		cairo_stroke(cr);
+	}
+
+	pl = pango_cairo_create_layout(cr);
+	pango_layout_set_font_description(pl, font);
+	pango_layout_set_text(pl, text, -1);
+	lw = bw - 2 * pad;
+	pango_layout_set_width(pl, (lw > 1 ? lw : 1) * PANGO_SCALE);
+	pango_layout_set_ellipsize(pl, PANGO_ELLIPSIZE_END);
+	pango_layout_set_alignment(pl, PANGO_ALIGN_CENTER);
+	pango_layout_get_pixel_size(pl, &tw, &th);
+	if (l->outline[3] > 0) {
+		cairo_move_to(cr, x + pad, y + (bh - th) / 2.0);
+		pango_cairo_layout_path(cr, pl);
+		cairo_set_source_rgba(cr, l->outline[0], l->outline[1], l->outline[2], l->outline[3] * dim);
+		cairo_set_line_width(cr, 3);
+		cairo_set_line_join(cr, CAIRO_LINE_JOIN_ROUND);
+		cairo_stroke(cr);
+	}
+	cairo_set_source_rgba(cr, l->text[0], l->text[1], l->text[2], l->text[3] * dim);
+	cairo_move_to(cr, x + pad, y + (bh - th) / 2.0);
+	pango_cairo_show_layout(cr, pl);
+	g_object_unref(pl);
 }
 
 static void paint_icon(cairo_t *cr, cairo_surface_t *ic, int x, int y)
@@ -580,6 +650,8 @@ static int render(struct surf *s, cairo_t *cr)
 	/* monitors.mode = pointer: nothing to show until the pointer picks the output */
 	int waiting = cfg.monitors == MON_POINTER && !st.target;
 	double fade = waiting ? 0 : anim_progress();
+	/* the open animation clips each tile; leave room for a label moved or sized beyond it */
+	int lp = (abs(cfg.lbl.offset_x) > abs(cfg.lbl.offset_y) ? abs(cfg.lbl.offset_x) : abs(cfg.lbl.offset_y)) + cfg.lbl.height;
 	int animating = fade < 1 && !waiting;
 
 	if (st.hidden) {
@@ -609,10 +681,10 @@ static int render(struct surf *s, cairo_t *cr)
 
 		if (animating) {
 			/* tile and label fade in and grow from 94% around the tile's center */
-			double sc = 0.94 + 0.06 * fade, cx = r->x + r->w / 2.0, cy = r->y + (r->h + cfg.label_h) / 2.0;
+			double sc = 0.94 + 0.06 * fade, cx = r->x + r->w / 2.0, cy = r->y + (r->h + label_space()) / 2.0;
 
 			cairo_save(cr);
-			cairo_rectangle(cr, r->x - 8, r->y - 8, r->w + 16, r->h + 2 * cfg.label_h + 24);
+			cairo_rectangle(cr, r->x - 8 - lp, r->y - 8 - lp, r->w + 16 + 2 * lp, r->h + 2 * label_space() + 24 + 2 * lp);
 			cairo_clip(cr);
 			cairo_translate(cr, cx, cy);
 			cairo_scale(cr, sc, sc);
@@ -666,8 +738,8 @@ static int render(struct surf *s, cairo_t *cr)
 			cairo_fill(cr);
 		}
 
-		draw_text(cr, label_text(tl, label, sizeof(label)), r->x, r->y + r->h + 6, r->w, 0,
-			0, 0, selected ? 1.0 : 0.7);
+		if (cfg.lbl.show)
+			draw_label(cr, r, label_text(tl, label, sizeof(label)), selected);
 		if (animating) {
 			cairo_pop_group_to_source(cr);
 			cairo_paint_with_alpha(cr, fade);
