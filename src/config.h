@@ -35,6 +35,7 @@ enum monitor_mode { MON_EACH, MON_POINTER };
 
 struct config {
 	int margin, spacing;
+	int tile_radius; /* corner radius of the tile preview and its frame, in pixels */
 	struct label_cfg lbl;
 	enum monitor_mode monitors;
 	int icon, icon_size; /* app icon on each tile */

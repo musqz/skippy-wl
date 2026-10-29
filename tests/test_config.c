@@ -72,6 +72,9 @@ int main(void)
 	CHECK(config_set(&c, "layout.margin", "-1") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "layout.margin", "12px") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "layout.spacing", "0") == 0 && c.spacing == 0);
+	CHECK(c.tile_radius == 0);
+	CHECK(config_set(&c, "tiles.radius", "12") == 0 && c.tile_radius == 12);
+	CHECK(config_set(&c, "tiles.radius", "51") < 0 && config_set(&c, "tiles.radius", "-1") < 0 && c.tile_radius == 12);
 	CHECK(c.lbl.show && c.lbl.option == LABEL_TITLE && c.lbl.anchor_v == ANCHOR_V_BELOW);
 	CHECK(c.lbl.radius == 6 && c.lbl.width > 0.91 && c.lbl.width < 0.93);
 	CHECK(config_set(&c, "label.option", "windowClass") == 0 && c.lbl.option == LABEL_APP_ID);
