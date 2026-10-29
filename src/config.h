@@ -26,6 +26,7 @@ struct label_cfg {
 	int offset_x, offset_y; /* from the anchor; may leave the tile */
 	int height; /* box height, and the room reserved under the tile */
 	double width; /* box width as a fraction of the tile */
+	int radius; /* corner radius of the box in pixels */
 	int opacity; /* 0-255, scales border and background */
 	double text[4], outline[4], border[4], bg[4], bg_hl[4]; /* r, g, b, a in 0..1 */
 	char font[96]; /* Pango description */

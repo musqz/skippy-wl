@@ -68,6 +68,7 @@ int main(void)
 	CHECK(config_set(&c, "layout.margin", "12px") < 0 && c.margin == 10);
 	CHECK(config_set(&c, "layout.spacing", "0") == 0 && c.spacing == 0);
 	CHECK(c.lbl.show && c.lbl.option == LABEL_TITLE && c.lbl.anchor_v == ANCHOR_V_BELOW);
+	CHECK(c.lbl.radius == 6 && c.lbl.width > 0.91 && c.lbl.width < 0.93);
 	CHECK(config_set(&c, "label.option", "windowClass") == 0 && c.lbl.option == LABEL_APP_ID);
 	CHECK(config_set(&c, "label.option", "both") == 0 && c.lbl.option == LABEL_BOTH);
 	CHECK(config_set(&c, "label.option", "class") < 0 && c.lbl.option == LABEL_BOTH);
@@ -80,6 +81,8 @@ int main(void)
 	CHECK(config_set(&c, "label.width", "0.8") == 0 && c.lbl.width > 0.79 && c.lbl.width < 0.81);
 	CHECK(config_set(&c, "label.width", "nan") < 0 && config_set(&c, "label.width", "inf") < 0);
 	CHECK(config_set(&c, "label.width", "1.5") < 0 && config_set(&c, "label.width", "0") < 0);
+	CHECK(config_set(&c, "label.radius", "0") == 0 && c.lbl.radius == 0);
+	CHECK(config_set(&c, "label.radius", "51") < 0 && config_set(&c, "label.radius", "-1") < 0);
 	CHECK(config_set(&c, "label.opacity", "196") == 0 && c.lbl.opacity == 196);
 	CHECK(config_set(&c, "label.opacity", "256") < 0);
 	CHECK(config_set(&c, "label.background", "#111111") == 0 && c.lbl.bg[3] == 1.0);
