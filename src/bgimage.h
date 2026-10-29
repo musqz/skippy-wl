@@ -4,7 +4,7 @@
 
 #include <cairo.h>
 
-/* PNG, JPEG or AVIF/HEIC file as an ARGB32 surface; NULL if it cannot be read. Caller destroys it. */
+/* PNG, JPEG, AVIF, HEIC or HEIF file as an ARGB32 surface; NULL if it cannot be read. Caller destroys it. */
 cairo_surface_t *bgimage_load(const char *path);
 
 #endif
