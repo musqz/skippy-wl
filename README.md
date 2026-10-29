@@ -4,7 +4,7 @@ Expose tool like skippy-xd but for wayland
 ## Requirements
 - labwc 0.20 or newer (wlroots 0.20). Other compositors are untested.
 - Protocols: ext-foreign-toplevel-list, ext-image-capture-source, ext-image-copy-capture, wlr-foreign-toplevel-management, wlr-layer-shell.
-- Build: meson, ninja, wayland, cairo, pango, librsvg, libxkbcommon.
+- Build: meson, ninja, wayland, cairo, pango, librsvg, libxkbcommon, gdk-pixbuf2, libheif, glib2.
 
 ## Install
 Run `./install.sh`. It installs to `~/.local`; set `PREFIX=/usr SUDO=sudo` for a system install.
