@@ -31,6 +31,7 @@
 #radius = 6
 
 ## opacity (0-255) scales border and background. backgroundHighlight is for the selected tile; unset = background.
+## With no background set, the selected label is filled with the highlight color and the text turns black or white to stay readable.
 #border = #00000000
 #background = #00000000
 #backgroundHighlight = #555555

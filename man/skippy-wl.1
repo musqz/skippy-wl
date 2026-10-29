@@ -251,7 +251,7 @@ Corner radius of the box in pixels, 0 to 50; at most half the box height. Defaul
 .B label.backgroundHighlight
 Box colors as #RRGGBB or #RRGGBBAA. The highlight is for the selected tile and defaults to
 .BR label.background .
-Default fully transparent.
+Default fully transparent, except that with neither set the selected label is filled opaque with the highlight color.
 .TP
 .B label.opacity
 0 to 255, scales the border and background alpha. Default 255.
@@ -259,7 +259,7 @@ Default fully transparent.
 .B label.text
 .TQ
 .B label.textOutline
-Text and outline colors. Default #ffffff and no outline.
+Text and outline colors. Default #ffffff and no outline; on the highlight fill above the text is black or white, whichever contrasts more, unless label.text is set.
 .TP
 .B label.font
 Pango font description, or skippy\-xd style such as
