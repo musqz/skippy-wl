@@ -1,7 +1,7 @@
 # Changelog
 
 ## Unreleased
-- Fill the selected label with the highlight color and pick black or white text for it, unless `[label]` sets colors.
+- Fill each label with the color of its tile frame and pick black or white text for it, unless `[label]` sets colors.
 
 ## 0.1.0
 - Add a fullscreen overlay with a thumbnail of every window on every output, most recently used first.

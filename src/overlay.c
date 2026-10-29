@@ -531,13 +531,14 @@ static void draw_label(cairo_t *cr, const struct rect *r, const char *text, int 
 	int bw, bh, pad = l->radius / 2 > 4 ? l->radius / 2 : 4, tw, th, x, y, lw;
 	PangoLayout *pl;
 
-	/* no label colors configured: the selected label is filled like its frame, with readable text */
-	if (selected && !l->bg_set) {
+	/* no label colors configured: the label is filled like its tile frame, with readable text */
+	if (!l->bg_set) {
 		static double fill[4];
+		const double *frame = selected ? cfg.highlight : cfg.border;
 
-		fill[0] = cfg.highlight[0];
-		fill[1] = cfg.highlight[1];
-		fill[2] = cfg.highlight[2];
+		fill[0] = frame[0];
+		fill[1] = frame[1];
+		fill[2] = frame[2];
 		fill[3] = k > 0 ? 1.0 / k : 0; /* opaque whatever the opacity, so the text contrast holds */
 		bg = fill;
 		if (!l->text_set)
