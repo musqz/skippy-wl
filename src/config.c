@@ -230,12 +230,8 @@ static int set_label(struct label_cfg *l, const char *key, const char *value)
 		return parse_int(value, 0, 50, &l->radius);
 	if (!strcmp(key, "opacity"))
 		return parse_int(value, 0, 255, &l->opacity);
-	if (!strcmp(key, "text")) {
-		if (parse_color(value, l->text) < 0)
-			return -1;
-		l->text_set = 1;
-		return 0;
-	}
+	if (!strcmp(key, "text"))
+		return parse_color(value, l->text);
 	if (!strcmp(key, "textOutline"))
 		return parse_color(value, l->outline);
 	if (!strcmp(key, "border"))
