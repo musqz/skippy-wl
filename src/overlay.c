@@ -917,7 +917,7 @@ static void surf_create(struct output *o)
 	zwlr_layer_surface_v1_set_anchor(s->layer,
 		ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
 		ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
-	zwlr_layer_surface_v1_set_exclusive_zone(s->layer, -1);
+	zwlr_layer_surface_v1_set_exclusive_zone(s->layer, cfg.panels_show ? 0 : -1);
 	zwlr_layer_surface_v1_set_keyboard_interactivity(s->layer,
 		ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_EXCLUSIVE);
 	wl_surface_commit(s->surface);

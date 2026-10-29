@@ -324,6 +324,15 @@ after a space starts a comment, so keep it out of the command. Example:
 .IR "noctalia msg wallpaper-get" .
 Default none.
 .TP
+.B background.panels
+.B show
+keeps panels and docks visible: the overlay fills only the space they leave free, so
+.B background.image
+is scaled to that smaller area. It works for panels that reserve space and the panels stay clickable; the compositor decides how layers are arranged.
+.B hide
+covers them. Default
+.IR hide .
+.TP
 .B colors.background
 Overlay color as #RRGGBB or #RRGGBBAA. Default #000000ff. With an alpha below ff the desktop shows through; with
 .B background.image

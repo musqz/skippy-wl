@@ -114,6 +114,10 @@ int main(void)
 	memset(big, 'a', sizeof(big) - 1);
 	big[sizeof(big) - 1] = 0;
 	CHECK(config_set(&c, "background.image_cmd", big) < 0);
+	CHECK(!c.panels_show);
+	CHECK(config_set(&c, "background.panels", "show") == 0 && c.panels_show);
+	CHECK(config_set(&c, "background.panels", "hide") == 0 && !c.panels_show);
+	CHECK(config_set(&c, "background.panels", "yes") < 0);
 
 	CHECK(config_set(&c, "hide.app_id", "foo*, bar") == 0 && !strcmp(c.hide_app.app_id, "foo*, bar"));
 	CHECK(config_set(&c, "hide.title", "Picture-in-Picture") == 0 && !strcmp(c.hide_title.title, "Picture-in-Picture"));
@@ -180,14 +184,14 @@ int main(void)
 		for (i = 0; i < 300; i++)
 			fputc(' ', f);
 		/* a too long header drops its keys instead of passing them to the section before */
-		fprintf(f, "# note\nclose = y\n[animation]\nduration = 321\n[ colors ]  # note\nhighlight = #00ff00 # green\nborder = #112233\t# tab\n"
+		fprintf(f, "# note\nclose = y\n[animation]\nduration = 321\n[background]\npanels = show\n[ colors ]  # note\nhighlight = #00ff00 # green\nborder = #112233\t# tab\n"
 			"background = # nothing\n[label]\nfont = # default\n[layout]\nmargin = 11 # px\n[bind]\nclose = x\n");
 		fclose(f);
 		setenv("XDG_CONFIG_HOME", dir, 1);
 		config_load(&c);
 		CHECK(c.margin == 11 && c.spacing == 22 && c.lbl.height == 33);
 		CHECK(c.switch_wait == 100 && c.lbl.option == LABEL_TITLE);
-		CHECK(c.anim_ms == 321);
+		CHECK(c.anim_ms == 321 && c.panels_show);
 		CHECK(c.icon_size == 64 && config_action(&c, XKB_KEY_y) == -1);
 		CHECK(dabs(c.bg[3] - 1.0) < 1e-6 && dabs(c.bg[0]) < 1e-6);
 		CHECK(dabs(c.border[0] - 0x11 / 255.0) < 1e-6);
