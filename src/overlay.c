@@ -93,7 +93,7 @@ static struct {
 	struct toplevel *pick; /* window to activate after teardown */
 	int dir; /* 1/-1: opened by --next/--prev */
 	int hidden; /* switch wait: surfaces are mapped but transparent, tiles not captured */
-	int mods_seen, ptr_seen, pivot_done;
+	int mods_seen, ptr_seen, pivot_done, scrolled;
 	uint32_t cur_mods; /* modifiers down now */
 	double t_last; /* ms of the last key press or step once the overlay is drawn */
 	double anim_t0; /* ms when the tiles first showed; 0 = not yet */
@@ -1335,6 +1335,7 @@ void overlay_pointer_motion(struct wl_surface *surface, double x, double y)
 	}
 	ptr_x = x;
 	ptr_y = y;
+	st.scrolled = 0;
 	if (!st.ptr_surf)
 		return;
 	hit = hit_test(st.ptr_surf, x, y);
@@ -1353,7 +1354,8 @@ void overlay_pointer_button(uint32_t button)
 
 	if (st.quit || !st.ptr_surf)
 		return;
-	hit = hit_test(st.ptr_surf, ptr_x, ptr_y);
+	/* after the wheel the cursor is not on the selection: clicks act on it until the cursor moves */
+	hit = st.scrolled ? st.sel : hit_test(st.ptr_surf, ptr_x, ptr_y);
 	if (button == BTN_LEFT) {
 		if (hit >= 0)
 			choose(hit);
@@ -1362,6 +1364,12 @@ void overlay_pointer_button(uint32_t button)
 	} else if (button == BTN_MIDDLE) {
 		close_tile(hit);
 	}
+}
+
+void overlay_pointer_scroll(int dir)
+{
+	st.scrolled = 1;
+	overlay_cycle(dir);
 }
 
 /* ---- run ---- */
