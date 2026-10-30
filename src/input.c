@@ -42,12 +42,34 @@ static void p_button(void *d, struct wl_pointer *p, uint32_t serial, uint32_t ti
 		overlay_pointer_button(button);
 }
 
+/* one wheel notch is 15; touchpads send small deltas that add up to a step */
+#define SCROLL_STEP 15.0
+
+static double scroll_acc;
+
 static void p_axis(void *d, struct wl_pointer *p, uint32_t t, uint32_t a, wl_fixed_t v)
-{ (void)d; (void)p; (void)t; (void)a; (void)v; }
+{
+	double dv = wl_fixed_to_double(v);
+
+	(void)d; (void)p; (void)t;
+	if (a != WL_POINTER_AXIS_VERTICAL_SCROLL)
+		return;
+	if ((dv > 0) != (scroll_acc > 0))
+		scroll_acc = 0;
+	scroll_acc += dv;
+	while (scroll_acc >= SCROLL_STEP) {
+		overlay_pointer_scroll(1);
+		scroll_acc -= SCROLL_STEP;
+	}
+	while (scroll_acc <= -SCROLL_STEP) {
+		overlay_pointer_scroll(-1);
+		scroll_acc += SCROLL_STEP;
+	}
+}
 static void p_frame(void *d, struct wl_pointer *p) { (void)d; (void)p; }
 static void p_axis_source(void *d, struct wl_pointer *p, uint32_t s) { (void)d; (void)p; (void)s; }
 static void p_axis_stop(void *d, struct wl_pointer *p, uint32_t t, uint32_t a)
-{ (void)d; (void)p; (void)t; (void)a; }
+{ (void)d; (void)p; (void)t; (void)a; scroll_acc = 0; }
 static void p_axis_discrete(void *d, struct wl_pointer *p, uint32_t a, int32_t v)
 { (void)d; (void)p; (void)a; (void)v; }
 

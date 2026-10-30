@@ -39,5 +39,7 @@ void overlay_modifiers(uint32_t depressed);
 void overlay_pointer_motion(struct wl_surface *surface, double x, double y);
 void overlay_pointer_leave(void);
 void overlay_pointer_button(uint32_t button);
+/* wheel step: 1 selects the next window, -1 the previous; clicks then act on the selection */
+void overlay_pointer_scroll(int dir);
 
 #endif
