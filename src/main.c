@@ -115,7 +115,8 @@ static int usage(const char *argv0)
 		"       %s --quit\n"
 		"       %s --capture <identifier> <out.png>\n"
 		"       %s --capture-all <dir>\n"
-		"       %s --version\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+		"       %s --version\n"
+		"LIST: comma separated globs; prefix a term with ! to exclude it, e.g. --app-id '!conky'\n", SKIPPY_VERSION, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
 	return 1;
 }
 
