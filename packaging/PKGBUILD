@@ -9,7 +9,7 @@ license=('GPL-3.0-or-later')
 depends=('cairo' 'gdk-pixbuf2' 'glib2' 'libheif' 'libxkbcommon' 'pango' 'librsvg' 'wayland')
 makedepends=('meson')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('79666d60c433042c8f2fd6ff555f9c8103ffaf4262f16f20d73e7013e96cb283')
 
 build() {
 	arch-meson "$pkgname-$pkgver" build
