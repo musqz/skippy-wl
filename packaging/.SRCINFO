@@ -15,6 +15,6 @@ pkgbase = skippy-wl
 	depends = librsvg
 	depends = wayland
 	source = skippy-wl-0.2.0.tar.gz::https://github.com/musqz/skippy-wl/archive/refs/tags/v0.2.0.tar.gz
-	sha256sums = SKIP
+	sha256sums = 79666d60c433042c8f2fd6ff555f9c8103ffaf4262f16f20d73e7013e96cb283
 
 pkgname = skippy-wl
