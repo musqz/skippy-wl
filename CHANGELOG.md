@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 - Select the next or previous window with the mouse wheel; a click then acts on the selection until the cursor moves.
 - Give each label a dark fill and an outline in the color of its tile frame, unless `[label]` sets colors.
 
