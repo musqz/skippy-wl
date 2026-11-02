@@ -1,6 +1,6 @@
 # Maintainer: musqz <gummy-fang-deputy@duck.com>
 pkgname=skippy-wl
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc='Window overview for labwc'
 arch=('x86_64')
@@ -9,7 +9,7 @@ license=('GPL-3.0-or-later')
 depends=('cairo' 'gdk-pixbuf2' 'glib2' 'libheif' 'libxkbcommon' 'pango' 'librsvg' 'wayland')
 makedepends=('meson')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('e74c15930d689fdd36c3d0fb955e0cfec4fdda372b6b06d3bf984dad8ea408ae')
+sha256sums=('SKIP')
 
 build() {
 	arch-meson "$pkgname-$pkgver" build
