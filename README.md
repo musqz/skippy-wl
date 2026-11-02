@@ -1,5 +1,5 @@
 # skippy-wl
-Expose tool like skippy-xd but for wayland
+Window overview for labwc, inspired by [skippy-xd](https://github.com/felixfung/skippy-xd) by Felix Fung. Independent Wayland code: no animations or paging.
 
 ## Requirements
 - labwc 0.20 or newer (wlroots 0.20). Other compositors are untested.
