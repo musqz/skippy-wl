@@ -1,5 +1,5 @@
 # skippy-wl
-Window overview for labwc, inspired by [skippy-xd](https://github.com/felixfung/skippy-xd) by Felix Fung. Independent Wayland code: no animations or paging.
+Window overview for labwc, inspired by [skippy-xd](https://github.com/felixfung/skippy-xd) by Felix Fung. Independent Wayland code, simpler than skippy-xd: no paging.
 
 ## Requirements
 - labwc 0.20 or newer (wlroots 0.20). Other compositors are untested.
@@ -89,9 +89,11 @@ To follow the Noctalia colors, set `theme_file = ~/.local/share/themes/noctalia/
 Sections: `[layout]` (`margin`, `spacing`), `[tiles]` (`radius`), `[label]` (`show`, `option`, `position`, `offsetX`, `offsetY`, `height`, `width`, `radius`, `border`, `background`, `backgroundHighlight`, `opacity`, `text`, `textOutline`, `font`), `[monitors]` (`mode`), `[switch]` (`pivot`, `wait`, `hold`), `[icons]` (`enabled`, `size`, `theme`, `position`), `[animation]` (`enabled`, `duration`), `[background]` (`image`, `image_cmd`, `panels`), `[colors]` (`background`, `highlight`, `border`, `theme_file`), `[bind]` (one key per action). Changes apply the next time the overlay opens.
 
 ## Limits
-No per-workspace pages and no `--desk` option: labwc does not say which workspace a window is on, so windows from all workspaces are shown together.
+No paging (per-workspace pages like `skippy-xd --paging`) and no `--desk` option. Windows from all workspaces are shown together.
 
-Both need a labwc protocol that reports a window's workspace.
+Why: labwc does not tell clients which workspace a window is on. The toplevel protocols skippy-wl uses (`wlr-foreign-toplevel-management`, `ext-foreign-toplevel-list`) carry no workspace, and `ext-workspace` lists workspaces but does not link windows to them.
+
+Who can fix it: the labwc developers, by reporting a window's workspace to clients, or the Wayland protocol authors, by adding a window-to-workspace link. Once a compositor reports it, paging and `--desk` can be added here.
 
 ## Development
     meson setup build && ninja -C build && meson test -C build
